@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="95">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+      <itemPath>lens_plane.hpp</itemPath>
+      <itemPath>mesh.hpp</itemPath>
+      <itemPath>observer_plane.hpp</itemPath>
+      <itemPath>plane.hpp</itemPath>
+      <itemPath>ray.hpp</itemPath>
+      <itemPath>ray_tracer.hpp</itemPath>
+      <itemPath>timer.hpp</itemPath>
+      <itemPath>util.hpp</itemPath>
+    </logicalFolder>
+    <logicalFolder name="ResourceFiles"
+                   displayName="Resource Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <itemPath>main.cpp</itemPath>
+    </logicalFolder>
+    <logicalFolder name="TestFiles"
+                   displayName="Test Files"
+                   projectFiles="false"
+                   kind="TEST_LOGICAL_FOLDER">
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Debug" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <ccTool>
+          <standard>8</standard>
+          <commandlineTool>mpic++</commandlineTool>
+          <commandLine>-Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter</commandLine>
+          <warningLevel>3</warningLevel>
+        </ccTool>
+        <linkerTool>
+          <commandlineTool>mpic++</commandlineTool>
+          <linkerLibItems>
+            <linkerOptionItem>-lboost_mpi</linkerOptionItem>
+            <linkerOptionItem>-lboost_serialization</linkerOptionItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="main.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="observer_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="ray.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="ray_tracer.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="timer.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="util.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+    </conf>
+    <conf name="Release" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <developmentMode>5</developmentMode>
+        </cTool>
+        <ccTool>
+          <developmentMode>6</developmentMode>
+          <standard>8</standard>
+          <commandlineTool>mpic++</commandlineTool>
+          <commandLine>-march=native -ffast-math -Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter</commandLine>
+          <warningLevel>3</warningLevel>
+        </ccTool>
+        <fortranCompilerTool>
+          <developmentMode>5</developmentMode>
+        </fortranCompilerTool>
+        <asmTool>
+          <developmentMode>5</developmentMode>
+        </asmTool>
+        <linkerTool>
+          <commandlineTool>mpic++</commandlineTool>
+          <linkerLibItems>
+            <linkerOptionItem>-lboost_mpi</linkerOptionItem>
+            <linkerOptionItem>-lboost_serialization</linkerOptionItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="main.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="observer_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="ray.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="ray_tracer.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="timer.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="util.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>
