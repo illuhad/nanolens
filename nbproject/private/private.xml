@@ -6,6 +6,18 @@
     </data>
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
-        <group/>
+        <group>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/geometry.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/render_engine.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/mesh.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/ray.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/numeric.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/pixel_processor.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/grid.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/image_finder.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/system.hpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/main.cpp</file>
+            <file>file:/run/user/1000/gvfs/sftp:host=colossus,user=aksel/data/storage/share/studium/7/ba/nanolens/util.hpp</file>
+        </group>
     </open-files>
 </project-private>

@@ -19,129 +19,21 @@
 #include "ray.hpp"
 #include "lens_plane.hpp"
 #include "observer_plane.hpp"
+#include "system.hpp"
 
-namespace nanolens
-{
-  class system
-  {
-  public:
-    static const std::size_t num_planes = 2;
-    
-    explicit system(const std::vector<lens_plane::star>& deflectors,
-                    const std::array<util::scalar, num_planes>& plane_distances = {1.0, 1.0})
-    : _deflector(new lens_plane(deflectors, plane_distances[1])),
-      _observer(new observer_plane({0.0, 0.0}, plane_distances[0]))
-    {
-      init_einstein_radius();
-    }
+namespace nanolens{
 
-      
-    explicit system(const std::string& star_file_,
-                    const std::array<util::scalar, num_planes>& plane_distances = {1.0, 1.0})
-    : _observer(new observer_plane({0.0, 0.0}, plane_distances[1]))
-    {
-      init_einstein_radius(plane_distances[1],
-                           plane_distances[0],
-                           plane_distances[0] + plane_distances[1]);
-      
-      util::scalar lens_plane_einstein_radius = get_einstein_radius() 
-              * _observer->distance_to_previous_plane();
-      
-      std::ifstream input_file;
-
-      input_file.open(star_file_.c_str());
-      
-      std::vector<lens_plane::star> stars;
-
-      if(input_file.is_open())
-      {
-        while(input_file.good())
-        {
-          util::vector2 position = {0.0, 0.0};
-          util::scalar mass = 0.0;
-          
-          input_file >> position[0];
-          input_file >> position[1];
-          input_file >> mass;
-          
-          util::scale(position, lens_plane_einstein_radius);
-          
-          lens_plane::star new_star(position, mass);
-          stars.push_back(new_star);
-        }
-      }
-      
-      _deflector = std::shared_ptr<lens_plane>(new lens_plane(stars, plane_distances[0]));
-      
-
-    }
-    
-    inline const observer_plane& get_observer() const
-    { return *_observer; }
-    
-    inline const lens_plane& get_deflector() const
-    { return *_deflector; }
-
-    inline util::scalar get_distance_from_source_to_observer() const
-    {
-      return _deflector->distance_to_previous_plane()
-              + _observer->distance_to_previous_plane();
-    }
-    
-    template<typename RayType>
-    inline void traverse(RayType& ray) const
-    {
-      ray.propagate(*_deflector);
-      ray.propagate(*_observer);
-    }
-    
-    inline util::scalar get_einstein_radius() const
-    {
-      return _einstein_radius;
-    }
-    
-    system get_empty_system() const
-    {
-      return system(std::vector<lens_plane::star>(), 
-        {_deflector->distance_to_previous_plane(),_observer->distance_to_previous_plane()});
-    }
-  private:
-    void init_einstein_radius(util::scalar d_ls, util::scalar d_l, util::scalar d_s)
-    {
-      _einstein_radius = lens_plane::calculate_einstein_radius(d_ls, d_l, d_s);
-    }
-    
-    void init_einstein_radius()
-    {
-      init_einstein_radius(_deflector->distance_to_previous_plane(),
-              _observer->distance_to_previous_plane(),
-              get_distance_from_source_to_observer());
-    }
-    
-    std::shared_ptr<observer_plane> _observer;
-    std::shared_ptr<lens_plane> _deflector;
-    
-    util::scalar _einstein_radius;
-  };
-  
-  template<class AdaptiveMeshPolicy>
-  class ray_tracer
+  class render_engine
   {
   public:
     typedef std::size_t count_type;
     
-    ray_tracer(const util::vector2& num_pixels,
+    render_engine(const util::vector2& num_pixels,
                 const util::vector2& physical_size,
-                const util::vector2& screen_position,
-                std::size_t num_rays_per_pixel,
-                unsigned refinement_lvl)
+                const util::vector2& screen_position)
     : _pixels(num_pixels[0], num_pixels[1]),
       _size(physical_size),
       _position(screen_position),
-      _num_rays(num_rays_per_pixel),
-      _num_rays_total(0),
-      _num_domes(0),
-      _refinement_level(refinement_lvl)
     {}
     
     template<class Function>
@@ -297,16 +189,10 @@ namespace nanolens
     }
     
   private:
-    std::random_device _rd;
-    
-    unsigned _num_rays_total;
-    unsigned _refinement_level;
 
     util::multi_array<util::scalar> _pixels;
     util::vector2 _size;
     util::vector2 _position;
-    std::size_t _num_rays;
-    std::size_t _num_domes;
   };
 }
 

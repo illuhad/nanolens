@@ -13,6 +13,7 @@
 #include <cassert>
 #include <algorithm>
 #include <boost/mpi.hpp>
+#include <boost/serialization/vector.hpp>
 
 namespace nanolens
 {
@@ -21,6 +22,9 @@ namespace nanolens
     typedef double scalar;
     typedef std::array<scalar, 3> vector3;
     typedef std::array<scalar, 2> vector2;
+    
+    template<typename ScalarType, std::size_t N>
+    using matrix_nxn = std::array<std::array<ScalarType, N>, N>;
     
     const scalar G = 1.;
     const scalar c = 1.;
@@ -96,11 +100,11 @@ namespace nanolens
 
       typedef T* iterator;
       typedef const T* const_iterator;
-
+      
       /// Construct empty array with no dimensions
 
       multi_array()
-      : data_(NULL)
+      : data_(nullptr)
       {
       }
 
@@ -111,7 +115,7 @@ namespace nanolens
       /// E.g, to construct a 2x3 array, \c sizes has to contain the elements {2, 3}.
 
       explicit multi_array(const std::vector<size_type>& sizes)
-      : sizes_(sizes), data_(NULL)
+      : sizes_(sizes), data_(nullptr)
       {
         init();
       }
@@ -124,7 +128,7 @@ namespace nanolens
 
       template<size_type N>
       explicit multi_array(const size_type(&sizes) [N])
-      : data_(NULL), sizes_(sizes + 0, sizes + N)
+      : data_(nullptr), sizes_(sizes + 0, sizes + N)
       {
         init();
       }
@@ -138,7 +142,7 @@ namespace nanolens
       /// the number of dimensions of the \c multi_array
 
       multi_array(const size_type* sizes, size_type num_dimensions)
-      : data_(NULL), sizes_(sizes, sizes + num_dimensions)
+      : data_(nullptr), sizes_(sizes, sizes + num_dimensions)
       {
         init();
       }
@@ -148,7 +152,7 @@ namespace nanolens
       /// @param size_y The extent of the array in dimension 1
 
       multi_array(size_type size_x, size_type size_y)
-      : data_(NULL)
+      : data_(nullptr)
       {
         sizes_.reserve(2);
         sizes_.push_back(size_x);
@@ -162,7 +166,7 @@ namespace nanolens
       /// @param size_z The extent of the array in dimension 2
 
       multi_array(size_type size_x, size_type size_y, size_type size_z)
-      : data_(NULL)
+      : data_(nullptr)
       {
         sizes_.reserve(3);
         sizes_.push_back(size_x);
@@ -174,7 +178,7 @@ namespace nanolens
       /// Copy Constructor. May Throw.
 
       multi_array(const multi_array<T>& other)
-      : sizes_(other.sizes_), buffer_size_(other.buffer_size_), data_(NULL),
+      : sizes_(other.sizes_), buffer_size_(other.buffer_size_), data_(nullptr),
       position_increments_(other.position_increments_)
       {
         if (sizes_.size() != 0)
@@ -281,7 +285,7 @@ namespace nanolens
       T& operator[](const std::vector<index_type>& position)
       {
         assert(position.size() == get_dimension());
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -295,7 +299,7 @@ namespace nanolens
       const T& operator[](const std::vector<index_type>& position) const
       {
         assert(position.size() == get_dimension());
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -309,7 +313,7 @@ namespace nanolens
       T& operator[](const std::vector<int>& position)
       {
         assert(position.size() == get_dimension());
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -323,7 +327,7 @@ namespace nanolens
       const T& operator[](const std::vector<int>& position) const
       {
         assert(position.size() == get_dimension());
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -339,7 +343,7 @@ namespace nanolens
       T& operator[](const index_type(&position) [N])
       {
         assert(N == get_dimension());
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -355,7 +359,7 @@ namespace nanolens
       const T& operator[](const index_type(&position) [N]) const
       {
         assert(N == get_dimension());
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -363,13 +367,13 @@ namespace nanolens
       }
 
       /// Access an element of the array
-      /// @param position A pointer to asimple C-array containing the
+      /// @param position A pointer to a simple C-array containing the
       /// indices of the element to look up
       /// @return A reference to the specified element
 
       T& operator[](const index_type* position)
       {
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -383,7 +387,7 @@ namespace nanolens
 
       const T& operator[](const index_type* position) const
       {
-        assert(data_ != NULL);
+        assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
         assert(pos < buffer_size_);
@@ -415,6 +419,9 @@ namespace nanolens
         for (std::size_t i = 0; i < sizes_.size(); ++i)
           assert(sizes_[i] != 0);
 
+        if(data_ != nullptr)
+          delete [] data_;
+        
         buffer_size_ = std::accumulate(sizes_.begin(), sizes_.end(), 1,
                                        std::multiplies<size_type>());
 
@@ -435,6 +442,26 @@ namespace nanolens
       size_type buffer_size_;
 
       T* data_;
+      
+      friend class boost::serialization::access;
+      
+      template<class Archive>
+      void save(Archive& ar, const unsigned int version)
+      {
+        ar & sizes_;
+        for(size_t i = 0; i < buffer_size_; ++i)
+          ar & data_[i];
+      }
+      
+      template<class Archive>
+      void load(Archive& ar, const unsigned int version)
+      {
+        ar & sizes_;
+        init();
+        for(size_t i = 0; i < buffer_size_; ++i)
+          ar & data_[i];
+      }
+      BOOST_SERIALIZATION_SPLIT_MEMBER()
     };
     
     

@@ -4,12 +4,19 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>geometry.hpp</itemPath>
+      <itemPath>grid.hpp</itemPath>
+      <itemPath>image_finder.hpp</itemPath>
       <itemPath>lens_plane.hpp</itemPath>
       <itemPath>mesh.hpp</itemPath>
+      <itemPath>numeric.hpp</itemPath>
       <itemPath>observer_plane.hpp</itemPath>
+      <itemPath>pixel_processor.hpp</itemPath>
       <itemPath>plane.hpp</itemPath>
       <itemPath>ray.hpp</itemPath>
-      <itemPath>ray_tracer.hpp</itemPath>
+      <itemPath>render_engine.hpp</itemPath>
+      <itemPath>scheduler.hpp</itemPath>
+      <itemPath>system.hpp</itemPath>
       <itemPath>timer.hpp</itemPath>
       <itemPath>util.hpp</itemPath>
     </logicalFolder>
@@ -57,19 +64,33 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
+      <item path="geometry.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="grid.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="image_finder.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="numeric.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="observer_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="pixel_processor.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="ray.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="ray_tracer.hpp" ex="false" tool="3" flavor2="0">
+      <item path="render_engine.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scheduler.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="system.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="timer.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -107,19 +128,33 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
+      <item path="geometry.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="grid.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="image_finder.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="numeric.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="observer_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="pixel_processor.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="ray.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="ray_tracer.hpp" ex="false" tool="3" flavor2="0">
+      <item path="render_engine.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="scheduler.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="system.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="timer.hpp" ex="false" tool="3" flavor2="0">
       </item>

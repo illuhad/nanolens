@@ -7,44 +7,8 @@
 
 #include <iostream>
 #include <iomanip>
-#include "ray_tracer.hpp"
+#include "render_engine.hpp"
 #include "timer.hpp"
-
-struct mesh_refinement_policy
-{
-  static constexpr bool refine_if_star_nearby = true;
-  static constexpr bool refine_if_strong_deflection = false;
-  static constexpr bool refine_if_strong_distortion = false;
-  static constexpr bool refine_if_triangle_twisted = false;
-  static constexpr bool refine_if_strong_magnification = false;
-  static constexpr bool refine_if_strong_attenuation = false;
-  static constexpr bool refine_if_close_to_observer = false;
-  
-  static constexpr nanolens::util::scalar star_nearby_weight = 0.1;
-  static constexpr nanolens::util::scalar strong_deflection_weight = 0.1;
-  static constexpr nanolens::util::scalar strong_distortion_weight = 1.0;
-  static constexpr nanolens::util::scalar triangle_twisted_weight = 0.1;
-  static constexpr nanolens::util::scalar strong_magnification_weight = 0.2;
-  static constexpr nanolens::util::scalar strong_attenuation_weight = 0.05;
-  static constexpr nanolens::util::scalar close_to_observer_weight = 0.4;
-  
-  static constexpr nanolens::util::scalar star_nearby_threshold = 3.0;
-  static constexpr nanolens::util::scalar star_nearby_close_cutoff = 0.9;
-
-  static constexpr nanolens::util::scalar strong_distortion_maximum = 4.0;
-  
-  static constexpr nanolens::util::scalar strong_deflection_maximum = 100.0;
-  
-  static constexpr nanolens::util::scalar strong_magnification_maximum = 10.0;
-  
-  static constexpr nanolens::util::scalar strong_attenuation_cutoff = 0.1;
-  
-  static constexpr nanolens::util::scalar close_to_observer_threshold = 20.0;
-  static constexpr nanolens::util::scalar close_to_observer_cutoff = 0.8;
-  
-  static constexpr nanolens::util::scalar vertex_pull_cutoff = 0.2;
-  static constexpr nanolens::util::scalar vertex_pull_max = 0.7;
-};
 
 /*
  * 
@@ -73,7 +37,7 @@ int main(int argc, char** argv)
   nanolens::util::timer timer;
   timer.start();
 
-  nanolens::ray_tracer<mesh_refinement_policy> tracer(npixels,
+  nanolens::render_engine tracer(npixels,
                                                       physical_size,
                                                       screen_position, 4, 30);
 
