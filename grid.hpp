@@ -1,8 +1,20 @@
-/* 
- * File:   grid.hpp
- * Author: aksel
+/*
+ * This file is part of nanolens, a free program to calculate microlensing 
+ * magnification patterns.
+ * Copyright (C) 2015  Aksel Alpay
  *
- * Created on 1. März 2015, 03:21
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef GRID_HPP
@@ -20,6 +32,7 @@ class grid
 {
 public:
   typedef std::array<FieldType, Dimension> scalar_array_type;
+  typedef std::array<std::size_t, Dimension> index_type;
   
   typedef typename util::multi_array<ValueType>::iterator iterator;
   typedef typename util::multi_array<ValueType>::const_iterator const_iterator;
@@ -138,7 +151,7 @@ public:
     boost::mpi::broadcast(comm, this->_data, master_rank);
   }
 private:
-  typedef std::array<size_t, Dimension> index_type;
+  
   
   index_type get_index(const scalar_array_type& point) const
   {

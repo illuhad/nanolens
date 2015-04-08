@@ -1,16 +1,31 @@
-/* 
- * File:   image_finder.hpp
- * Author: aksel
+/*
+ * This file is part of nanolens, a free program to calculate microlensing 
+ * magnification patterns.
+ * Copyright (C) 2015  Aksel Alpay
  *
- * Created on 24. März 2015, 03:19
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef IMAGE_FINDER_HPP
 #define	IMAGE_FINDER_HPP
 
 #include <complex>
+#include <functional>
 #include "numeric.hpp"
 #include "util.hpp"
+#include "status.hpp"
+#include "geometry.hpp"
 
 namespace nanolens{
 
@@ -18,8 +33,10 @@ template<class SystemType>
 class image_finder
 {
 public:
-  image_finder(const SystemType* sys, util::scalar accuracy)
-  : _system(sys), _accuracy(accuracy)
+  typedef std::function<void(const status_info&)> status_handler_type;
+  
+  image_finder(const SystemType* sys, util::scalar accuracy, const status_handler_type& handler)
+  : _system(sys), _accuracy(accuracy), _handler(handler)
   {
     assert(sys != nullptr);
     
@@ -73,10 +90,13 @@ protected:
   
   const SystemType* _system;
   util::scalar _accuracy;
+  status_handler_type _handler;
 };
 
+namespace image_finders {
+
 template<class SystemType>
-class inversion_table_image_finder : public image_finder<SystemType>
+class inversion_table : public image_finder<SystemType>
 {
 public:
   typedef numeric::function_inverter<util::scalar, 2, util::scalar, 2> inverter_type;
@@ -84,15 +104,16 @@ public:
   
   static const std::size_t benchmark_size = 10000;
   
-  inversion_table_image_finder(const SystemType* sys,
+  inversion_table(const SystemType* sys,
                                const util::vector2& sampling_center,
                                const util::scalar sampling_radius,
                                const util::vector2& physical_source_plane_size,
                                const util::vector2& screen_position,
                                const std::array<std::size_t, 2>& num_pixels,
                                std::size_t num_samples_per_dim,
-                               util::scalar accuracy)
-  : image_finder<SystemType>(sys, accuracy),
+                               util::scalar accuracy,
+                               const status_handler_type& handler)
+  : image_finder<SystemType>(sys, accuracy, handler),
     _differential_delta(0.25 * accuracy),
     _newton_tolerance(accuracy),
     _max_iterations(100),
@@ -194,11 +215,12 @@ private:
 
 //TODO
 template<class SystemType>
-class root_tracing_image_finder : public image_finder<SystemType>
+class root_tracing : public image_finder<SystemType>
 {
 public:
-  root_tracing_image_finder(const SystemType* sys)
-  : image_finder(sys)
+  root_tracing(const SystemType* sys, util::scalar accuracy,
+               const status_handler_type& handler)
+  : image_finder<SystemType>(sys, accuracy, handler)
   {
     
   }
@@ -211,8 +233,9 @@ public:
 };
 
 
+// TODO
 template<class SystemType>
-class complex_polynomial_image_finder : public image_finder<SystemType>
+class complex_polynomial : public image_finder<SystemType>
 {
   struct root
   {
@@ -223,8 +246,9 @@ class complex_polynomial_image_finder : public image_finder<SystemType>
 public:
   typedef std::complex<util::scalar> complex_type;
   
-  complex_polynomial_image_finder(const SystemType* sys, util::scalar accuracy)
-  : image_finder(sys, accuracy),
+  complex_polynomial<SystemType>(const SystemType* sys, util::scalar accuracy,
+                                 const status_handler_type& handler)
+  : image_finder(sys, accuracy, handler),
     _newton_tolerance(accuracy),
     _differential_delta(0.25 * accuracy)
   {
@@ -266,6 +290,41 @@ private:
   util::scalar _newton_tolerance;
   util::scalar _differential_delta;
 };
+
+template<class SystemType, std::size_t N_start_points>
+class newton_crown : public image_finder<SystemType>
+{
+public:
+  static_assert(N_start_points > 0, "newton_crown: At least 1 start point is required");
+  
+  newton_crown(const SystemType* sys,
+               util::scalar crown_radius,
+               util::scalar accuracy, 
+               const status_handler_type& handler)
+  : image_finder<SystemType>(sys, accuracy, handler),
+    _shape_template(util::vector2({0.0, 0.0}), crown_radius)
+  {}
+  
+  virtual void get_images(const util::vector2& source_plane_pos,
+                          std::vector<util::vector2>& out)
+  {
+    for(auto star = _system->get_deflector().begin_stars();
+      star != _system->get_deflector().end_stars(); ++star)
+    {
+      util::vector2 star_position = star->get_position();
+      
+      geometry::equilateral_polygon<N_start_points> newton_start_points = 
+        _shape_template;
+      
+      newton_start_points.shift_coordinates(star_postion);
+    }
+  }
+private:
+  util::grid2d<util::scalar, bool> _processed_areas;
+  geometry::equilateral_polygon<N_start_points> _shape_template;
+};
+
+}
 
 }
 

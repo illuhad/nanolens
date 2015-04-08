@@ -1,8 +1,20 @@
-/* 
- * File:   source_plane.hpp
- * Author: aksel
+/*
+ * This file is part of nanolens, a free program to calculate microlensing 
+ * magnification patterns.
+ * Copyright (C) 2015  Aksel Alpay
  *
- * Created on 8. Dezember 2014, 00:40
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef RAYTRACER_HPP
@@ -61,7 +73,7 @@ public:
     // Find images
     status_handler(status_info("Initializing image finding algorithm"));
     std::shared_ptr<image_finder<system>> img_finder 
-      = new complex_polynomial_image_finder<system>(&sys, _accuracy);
+      = new image_finders::complex_polynomial<system>(&sys, _accuracy);
     
     pixel_processor<16> pixel_evaluator(8 * _accuracy);
     
