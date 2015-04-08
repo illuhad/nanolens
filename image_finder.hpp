@@ -8,6 +8,7 @@
 #ifndef IMAGE_FINDER_HPP
 #define	IMAGE_FINDER_HPP
 
+#include <complex>
 #include "numeric.hpp"
 #include "util.hpp"
 
@@ -17,8 +18,8 @@ template<class SystemType>
 class image_finder
 {
 public:
-  image_finder(const SystemType* sys)
-  : _system(sys)
+  image_finder(const SystemType* sys, util::scalar accuracy)
+  : _system(sys), _accuracy(accuracy)
   {
     assert(sys != nullptr);
     
@@ -71,6 +72,7 @@ protected:
   util::scalar _dLS_over_dL;
   
   const SystemType* _system;
+  util::scalar _accuracy;
 };
 
 template<class SystemType>
@@ -88,12 +90,13 @@ public:
                                const util::vector2& physical_source_plane_size,
                                const util::vector2& screen_position,
                                const std::array<std::size_t, 2>& num_pixels,
-                               std::size_t num_samples_per_dim)
-  : image_finder<SystemType>(sys),
-    _differential_delta(1.e-8),
-    _newton_tolerance(1.e-8),
+                               std::size_t num_samples_per_dim,
+                               util::scalar accuracy)
+  : image_finder<SystemType>(sys, accuracy),
+    _differential_delta(0.25 * accuracy),
+    _newton_tolerance(accuracy),
     _max_iterations(100),
-    _roots_epsilon(1.e-4)
+    _roots_epsilon(4 * accuracy)
   {
     util::vector2 pixel_sizes = {physical_source_plane_size[0] / static_cast<util::scalar>(num_pixels[0]),
                                  physical_source_plane_size[1] / static_cast<util::scalar>(num_pixels[1])};
@@ -189,6 +192,7 @@ private:
   numeric::function_inverter<util::scalar, 2, util::scalar, 2> _inverter;
 };
 
+//TODO
 template<class SystemType>
 class root_tracing_image_finder : public image_finder<SystemType>
 {
@@ -204,6 +208,63 @@ public:
   {
     
   }
+};
+
+
+template<class SystemType>
+class complex_polynomial_image_finder : public image_finder<SystemType>
+{
+  struct root
+  {
+    util::vector2 position;
+    unsigned multiplicity;
+  };
+  
+public:
+  typedef std::complex<util::scalar> complex_type;
+  
+  complex_polynomial_image_finder(const SystemType* sys, util::scalar accuracy)
+  : image_finder(sys, accuracy),
+    _newton_tolerance(accuracy),
+    _differential_delta(0.25 * accuracy)
+  {
+  }
+  
+  virtual void get_images(const util::vector2& source_plane_pos,
+                          std::vector<util::vector2>& out) const
+  {
+    out.clear();
+    
+    std::vector<root> found_roots;
+    
+    while(!all_roots_found(found_roots))
+    {
+      // Create random starting point
+    }
+    
+    out.reserve(found_roots.size());
+    for(const root& r : found_roots)
+      out.push_back(r.position);
+  }
+  
+private:
+  
+  inline std::size_t get_multiplicity(const util::vector2& root) const
+  {
+    
+  }
+
+  inline bool all_roots_found(const std::vector<root>& root_list) const
+  {
+    std::size_t num_weighted_roots = 0;
+    for(const root& r : root_list)
+      num_weighted_roots += r.multiplicity;
+    
+    return num_weighted_roots >= this->_system->get_deflector().num_stars();
+  }
+  
+  util::scalar _newton_tolerance;
+  util::scalar _differential_delta;
 };
 
 }

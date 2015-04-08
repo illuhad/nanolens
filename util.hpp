@@ -104,7 +104,7 @@ namespace nanolens
       /// Construct empty array with no dimensions
 
       multi_array()
-      : data_(nullptr)
+      : data_(nullptr), buffer_size_(0)
       {
       }
 

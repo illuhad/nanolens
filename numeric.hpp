@@ -322,7 +322,8 @@ public:
     _current_position(starting_point),
     _resid(0.0),
     _f(f),
-    _requested_tolerance(0.0)
+    _requested_tolerance(0.0),
+    _last_step_size(0.0)
   {}
   
   
@@ -346,15 +347,22 @@ public:
         correction[i] += (J_inverse[i][j] * function_value[j]);
     }
     
+    _last_step_size = 0.0;
+    
     for(std::size_t i = 0; i < Dimension; ++i)
+    {
       this->_current_position[i] -= correction[i];
+      this->_last_step_size += util::square(correction[i]);
+    }
   } 
   
+  
+  /// @param tolerance the squared distance to the root that the result is allowed to have
   void run(ScalarType tolerance, std::size_t max_iterations)
   {
     _requested_tolerance = tolerance;
     
-    for(std::size_t iteration = 0; iteration < max_iterations && _resid > tolerance;
+    for(std::size_t iteration = 0; iteration < max_iterations && _last_step_size > tolerance;
       ++iteration)
     {
       single_iteration();
@@ -368,9 +376,15 @@ public:
     }
   }
   
+  /// Once a root has been approximated, returns f(approximation)
   ScalarType get_residual() const
   {
     return _resid;
+  }
+  
+  ScalarType get_squared_distance_error() const
+  {
+    return _last_step_size;
   }
   
   inline bool was_successful() const
@@ -378,7 +392,7 @@ public:
     if(_requested_tolerance == 0.0)
       return false;
     
-    return _resid <= _requested_tolerance;
+    return _last_step_size <= _requested_tolerance;
   }
   
   const util::vector2& get_position() const
@@ -389,6 +403,7 @@ private:
   ScalarType _requested_tolerance;
   ScalarType _delta;
   ScalarType _resid;
+  ScalarType _last_step_size;
   Rn_vector _current_position;
   function_type _f;
 };

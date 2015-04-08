@@ -131,6 +131,9 @@ namespace nanolens
     inline const_star_iterator end_stars() const
     { return _deflectors.end(); }
     
+    inline std::size_t num_stars() const
+    { return _deflectors.size(); }
+    
     template<class RayBundleType>
     const_star_iterator find_star_in_bundle_area(const RayBundleType& bundle) const
     {

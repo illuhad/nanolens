@@ -20,180 +20,189 @@
 #include "lens_plane.hpp"
 #include "observer_plane.hpp"
 #include "system.hpp"
+#include "image_finder.hpp"
+#include "pixel_processor.hpp"
+#include "status.hpp"
 
 namespace nanolens{
 
-  class render_engine
+class render_engine
+{
+public:
+  typedef std::size_t count_type;
+
+  static constexpr int master_rank = 0;
+  
+  render_engine(const std::array<std::size_t, 2>& num_pixels,
+              const util::vector2& physical_size,
+              const util::vector2& screen_position,
+              util::scalar numerical_accuracy = 1.e-7)
+  : _num_pixels(num_pixels),
+    _size(physical_size),
+    _position(screen_position),
+    _accuracy(numerical_accuracy),
+    _scaled_screen_size(physical_size),
+    _screen_min_corner(screen_position)
+  {}
+
+  template<class Function>
+  void run(system& sys, const boost::mpi::communicator& comm, Function status_handler)
   {
-  public:
-    typedef std::size_t count_type;
+
+    init_screen(sys);
+
+    std::size_t npixels_x = _num_pixels[0];
+    std::size_t npixels_y = _num_pixels[1];
+    //util::scalar pixel_size = (scaled_size[0] + scaled_size[1]) / (npixels_x + npixels_y);
+
+    util::scalar distance_to_observer = sys.get_deflector().distance_to_previous_plane()
+            + sys.get_observer().distance_to_previous_plane();
+
+    // Find images
+    status_handler(status_info("Initializing image finding algorithm"));
+    std::shared_ptr<image_finder<system>> img_finder 
+      = new complex_polynomial_image_finder<system>(&sys, _accuracy);
     
-    render_engine(const util::vector2& num_pixels,
-                const util::vector2& physical_size,
-                const util::vector2& screen_position)
-    : _pixels(num_pixels[0], num_pixels[1]),
-      _size(physical_size),
-      _position(screen_position),
-    {}
+    pixel_processor<16> pixel_evaluator(8 * _accuracy);
     
-    template<class Function>
-    void run(system& sys, const boost::mpi::communicator& comm, Function status_handler)
+    scheduler pixel_schedule(comm);
+    
+    status_handler(status_info("Scheduling pixel processing"));
+    // Calculate 50 pixel to get performance estimates for the scheduler
+    std::size_t benchmark_size = 50;
+    auto scheduler_test_function = [&]()
     {
-      this->_num_rays_total = 0;
+      std::size_t px_x = std::max(npixels_x / 2, 1);
+      
+      
+      for(std::size_t px_y = 0; px_y < benchmark_size; ++px_y)
+      {
+        util::vector2 pixel_position = pixel_index_to_position({px_x, px_y});
+
+        util::scalar magnification = pixel_evaluator.get_pixel_magnification(pixel_position,
+                                                                             sys,
+                                                                             *img_finder);
+      }
+    };
+    
+    pixel_schedule.run(npixels_x, scheduler_test_function);
+    
+    status_handler(status_info("Pixel processing complete", &pixel_schedule, ""));
+    
+    std::vector<util::scalar> send_data;
+    // Reserve a generous amount of space so that the vector won't have
+    // to grow often
+    send_data.reserve(0.7 * _num_pixels[0] * _num_pixels[1]);
+    
+    // Compute pixel values in parallel
+    for(std::size_t px_x = 0; px_x < npixels_x; ++px_x)
+    {
+      double progress = pixel_schedule.get_progress_at_job(px_x);
+      
+      status_handler(status_info("Processing pixels", nullptr, "", progress));
+      if(pixel_schedule.is_scheduled_to_this_process(px_x))
+      {
+        for(std::size_t px_y = 0; px_y < npixels_y; ++px_y)
+        { 
+          util::vector2 pixel_position = pixel_index_to_position({px_x, px_y});
+
+          util::scalar magnification = pixel_evaluator.get_pixel_magnification(pixel_position,
+                                                                               sys,
+                                                                               *img_finder);
+
+          send_data.push_back(magnification);
+
+        }
+      }
+    }
+    
+    std::vector<std::vector<util::scalar>> recv_data;
+    boost::mpi::gather(comm, send_data, recv_data, master_rank);
+    
+    if(comm.rank() == master_rank)
+    {
+      _pixels = util::multi_array<util::scalar>(_num_pixels[0], _num_pixels[1]);
+      
       std::fill(_pixels.begin(), _pixels.end(), 0.0);
       
-      
-      util::scalar einstein_radius = sys.get_einstein_radius();
-      
-      
-      util::vector2 scaled_size = _size;
-      util::scale(scaled_size, einstein_radius * sys.get_distance_from_source_to_observer());
-      
-      const util::scalar pi = boost::math::constants::pi<util::scalar>();
-      
-      util::vector2 position = {0.0, 0.0};
-      
-      std::size_t npixels_x = _pixels.get_extent_of_dimension(0);
-      std::size_t npixels_y = _pixels.get_extent_of_dimension(1);
-      //util::scalar pixel_size = (scaled_size[0] + scaled_size[1]) / (npixels_x + npixels_y);
-      
-      util::scalar distance_to_observer = sys.get_deflector().distance_to_previous_plane()
-              + sys.get_observer().distance_to_previous_plane();
-      
-      util::scalar angular_radius = std::max(3.5 * sys.get_deflector().get_radius_estimate() / 
-                sys.get_deflector().distance_to_previous_plane(),
-              0.5 * (scaled_size[0] + scaled_size[1]) /
-                sys.get_deflector().distance_to_previous_plane());
-      
-      
-      util::scalar z_offset = 0.0;
-      
-      
-      unsigned num_rays_per_dim = static_cast<unsigned>(std::sqrt(_num_rays));
+      // Sort received pixel values from processes and compose image
+      std::vector<std::size_t> rank_pixel_counters(comm.size(), 0);
 
-      std::default_random_engine rng_engine(_rd());
-      std::uniform_real_distribution<util::scalar> random_angle(0.0, 2 * pi);
-      
-      int rank = comm.rank();
-      int num_procs = comm.size();   
-      
-      for(std::size_t x = 0; x < npixels_x; ++x)
+      for(std::size_t px_x = 0; px_x < npixels_x; ++px_x)
       {
-        
-        if(x % num_procs == static_cast<unsigned>(rank))
+        int assigned_process_rank = pixel_schedule.get_assigned_process_rank(px_x);
+        assert(assigned_process_rank >= 0);
+
+        for(std::size_t px_y = 0; px_y < npixels_y; ++px_y)
         {
-          status_handler(static_cast<double>(x)/npixels_x);
+          std::size_t pixel_index [] = {px_x, px_y};
 
-          util::scalar prev_magnification = 1.0;
-          for(std::size_t y = 0; y < npixels_y; ++y)
-          {
-            std::size_t pixel_idx[] = {x, y};
+          std::size_t current_pixel_count_for_rank = rank_pixel_counters[assigned_process_rank];
 
-            position[0] = _position[0] - 0.5 * scaled_size[0]  
-                    + (static_cast<util::scalar>(x) + 0.5) / npixels_x * scaled_size[0];
+          _pixels[pixel_index] = recv_data[assigned_process_rank][current_pixel_count_for_rank];
 
-            position[1] = _position[1] - 0.5 * scaled_size[1]  
-                    + (static_cast<util::scalar>(y) + 0.5) / npixels_y * scaled_size[1];
-
-
-            std::size_t num_rays = std::min(prev_magnification / 3.0, 
-                                            static_cast<util::scalar>(3)) * num_rays_per_dim;
-            if(num_rays < num_rays_per_dim)
-              num_rays = num_rays_per_dim;
-            
-            util::vector2 central_angle = sys.get_observer().get_observer_position();
-
-            util::sub(central_angle, position);
-            util::scale(central_angle, 1.0 / distance_to_observer);
-            //central_angle={0.0,0.0};
-            ray_dome<AdaptiveMeshPolicy> dome(position, 
-                                              central_angle, 
-                                              z_offset, 
-                                              angular_radius, 
-                                              num_rays,
-                                              _refinement_level);
-            bool dump = false;
-            if(x == 0 && y == 0)
-              dump = false;
-            
-            dome.traverse(sys, dump);
-            _num_rays_total += dome.get_num_rays();
-            ++_num_domes;
-
-            util::scalar mag = dome.get_magnification();
-            _pixels[pixel_idx] = mag;
-            
-            prev_magnification = 1.0;
-          }
-        }
-
-      }
-      
-      // collect data
-      std::vector<util::scalar> data;
-      data.reserve(1.2 * npixels_x / num_procs * npixels_y);
-      
-      for(std::size_t x = 0; x < npixels_x; ++x)
-      {
-        for(std::size_t y = 0; y < npixels_y; ++y)
-        {
-          std::size_t idx [] = {x, y};
-          if(x % num_procs == static_cast<unsigned>(rank))
-            data.push_back(_pixels[idx]);
+            ++rank_pixel_counters[assigned_process_rank];
         }
       }
-      
-      std::vector<std::vector<util::scalar> > received_data;
-      if(rank == 0)
-        received_data.reserve(num_procs);
-      
-      boost::mpi::gather(comm, data, received_data, 0);
-      
-      if(rank == 0)
-      {
-        std::vector<std::size_t> read_positions(num_procs, 0);
-        for(std::size_t x = 0; x < npixels_x; ++x)
-        {
-          for(std::size_t y = 0; y < npixels_y; ++y)
-          {
-            int process_id = x % num_procs;
-            std::size_t idx [] = {x, y};
-            _pixels[idx] = received_data[process_id][read_positions[process_id]];
-            ++read_positions[process_id];
-          }
-        }
-      }
+    }
+  }
 
-    }
+
+  /// works only on the master process
+  void save_pixels(const std::string& filename)
+  {
     
-    count_type get_num_traced_rays() const
-    {
-      return _num_rays_total;
-    }
-    
-    count_type get_num_domes() const
-    {
-      return _num_domes;
-    }
-    
-    void save_pixels(const std::string& filename)
-    {
-      std::ofstream file(filename.c_str(), 
+    std::ofstream file(filename.c_str(), 
                          std::ofstream::out|std::ofstream::binary|std::ofstream::trunc);
-      
+    
+    if(_pixels.size() != 0)
+    {
+
       if(file.is_open())
       {
         file.write(reinterpret_cast<char*>(_pixels.begin()), 
                    sizeof(util::scalar) * _pixels.size());
       }
     }
-    
-  private:
+  }
 
-    util::multi_array<util::scalar> _pixels;
-    util::vector2 _size;
-    util::vector2 _position;
-  };
+private:
+  
+  void init_screen(const system& sys)
+  {
+    util::scalar einstein_radius = sys.get_einstein_radius();
+
+    _scaled_screen_size = _size;
+    util::scale(_scaled_screen_size, einstein_radius * sys.get_distance_from_source_to_observer());
+    
+    _screen_min_corner = _position;
+    util::vector2 half_size = _scaled_screen_size;
+    util::scale(half_size, 0.5);
+    util::sub(_screen_min_corner, half_size);
+    
+    util::scalar npixels_x = static_cast<util::scalar>(_num_pixels[0]);
+    util::scalar npixels_y = static_cast<util::scalar>(_num_pixels[1]);
+    _pixel_size = _scaled_screen_size;
+    _pixel_size[0] /= npixels_x;
+    _pixel_size[1] /= npixels_y;
+  }
+  
+  inline util::vector2 pixel_index_to_position(const std::array<std::size_t>& px_index) const
+  {
+    return {_screen_min_corner[0] + _pixel_size[0] * px_index[0],
+            _screen_min_corner[1] + _pixel_size[1] * px_index[1]};
+  }
+
+  std::array<std::size_t, 2> _num_pixels;
+  util::scalar _accuracy;
+  util::multi_array<util::scalar> _pixels;
+  util::vector2 _size;
+  util::vector2 _pixel_size;
+  util::vector2 _scaled_screen_size;
+  util::vector2 _screen_min_corner;
+  util::vector2 _position;
+};
+
 }
 
 #endif	/* SOURCE_PLANE_HPP */
