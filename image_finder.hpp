@@ -297,17 +297,37 @@ class newton_crown : public image_finder<SystemType>
 public:
   static_assert(N_start_points > 0, "newton_crown: At least 1 start point is required");
   
+  typedef util::grid2d<util::scalar, bool> grid_type;
+  
   newton_crown(const SystemType* sys,
                util::scalar crown_radius,
                util::scalar accuracy, 
                const status_handler_type& handler)
   : image_finder<SystemType>(sys, accuracy, handler),
-    _shape_template(util::vector2({0.0, 0.0}), crown_radius)
-  {}
+    _shape_template(util::vector2({0.0, 0.0}), crown_radius),
+    _differential_delta(0.25 * accuracy),
+    _newton_tolerance(accuracy),
+    _max_iterations(100),
+    _roots_epsilon(4 * accuracy)
+  {
+  }
   
   virtual void get_images(const util::vector2& source_plane_pos,
                           std::vector<util::vector2>& out)
   {
+    out.clear();
+    
+    // Define the function of which we want determine the root using Newton's method
+    auto ray_equation = [&](const util::vector2& lens_plane_pos) -> util::vector2
+    {
+      // left hand side of the ray equation
+      util::vector2 lhs = this->ray_function(lens_plane_pos);
+      //subtract right hand side from left hand side
+      util::sub(lhs, source_plane_pos);
+      
+      return lhs;
+    };
+    
     for(auto star = _system->get_deflector().begin_stars();
       star != _system->get_deflector().end_stars(); ++star)
     {
@@ -317,11 +337,42 @@ public:
         _shape_template;
       
       newton_start_points.shift_coordinates(star_postion);
+      
+      for(std::size_t vertex_index = 0; 
+        vertex_index < newton_start_points.num_hull_vertices();
+        ++vertex_index)
+      {
+        numeric::newton<util::scalar, 2> newton2d(newton_start_points[vertex_index], 
+                                                  _differential_delta, ray_equation);
+      
+        newton2d.run(_newton_tolerance, _max_iterations);
+        
+        if(newton2d.was_successful())
+        {
+          if(is_new_root(out, newton2d.get_position()))
+            out.push_back(newton2d.get_position());
+        }
+      }
     }
   }
 private:
-  util::grid2d<util::scalar, bool> _processed_areas;
+  inline bool is_new_root(const std::vector<util::vector2>& root_list, 
+                             const util::vector2& root) const
+  {
+    for(const util::vector2& r : root_list)
+    {
+      if((std::abs(r[0] - root[0]) + std::abs(r[1] - root[1])) < _roots_epsilon)
+        return false;
+    }
+    return true;
+  }
+  
   geometry::equilateral_polygon<N_start_points> _shape_template;
+  
+  util::scalar _differential_delta;
+  util::scalar _newton_tolerance;
+  util::scalar _max_iterations;
+  util::scalar _roots_epsilon;
 };
 
 }

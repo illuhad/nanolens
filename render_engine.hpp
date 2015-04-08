@@ -73,7 +73,7 @@ public:
     // Find images
     status_handler(status_info("Initializing image finding algorithm"));
     std::shared_ptr<image_finder<system>> img_finder 
-      = new image_finders::complex_polynomial<system>(&sys, _accuracy);
+      = new image_finders::complex_polynomial<system>(&sys, _accuracy, status_handler);
     
     pixel_processor<16> pixel_evaluator(8 * _accuracy);
     
@@ -85,7 +85,6 @@ public:
     auto scheduler_test_function = [&]()
     {
       std::size_t px_x = std::max(npixels_x / 2, 1);
-      
       
       for(std::size_t px_y = 0; px_y < benchmark_size; ++px_y)
       {

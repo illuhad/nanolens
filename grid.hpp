@@ -39,6 +39,8 @@ public:
   
   typedef ValueType value_type;
   
+  grid(){}
+  
   grid(const scalar_array_type& min_extent,
        const scalar_array_type& max_extent,
        size_t num_buckets_per_dim)
@@ -61,6 +63,16 @@ public:
   const ValueType& operator[](const scalar_array_type& position) const
   {
     return _data[get_index(position).data()];
+  }
+  
+  ValueType& operator[](const index_type& position)
+  {
+    return _data[position.data()];
+  }
+  
+  const ValueType& operator[](const scalar_array_type& position) const
+  {
+    return _data[position.data()];
   }
   
   iterator begin()

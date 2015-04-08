@@ -22,9 +22,8 @@
 #include "render_engine.hpp"
 #include "timer.hpp"
 #include "system.hpp"
-/*
- * 
- */
+
+
 int main(int argc, char** argv) 
 {
   boost::mpi::environment env;
