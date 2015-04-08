@@ -65,15 +65,11 @@ public:
 
     std::size_t npixels_x = _num_pixels[0];
     std::size_t npixels_y = _num_pixels[1];
-    //util::scalar pixel_size = (scaled_size[0] + scaled_size[1]) / (npixels_x + npixels_y);
-
-    util::scalar distance_to_observer = sys.get_deflector().distance_to_previous_plane()
-            + sys.get_observer().distance_to_previous_plane();
 
     // Find images
     status_handler(status_info("Initializing image finding algorithm"));
-    std::shared_ptr<image_finder<system>> img_finder 
-      = new image_finders::complex_polynomial<system>(&sys, _accuracy, status_handler);
+    std::shared_ptr<image_finder<system>> img_finder(
+          new image_finders::newton_crown<system, 8>(&sys, 50.0 * _accuracy, _accuracy, status_handler));
     
     pixel_processor<16> pixel_evaluator(8 * _accuracy);
     
@@ -84,15 +80,15 @@ public:
     std::size_t benchmark_size = 50;
     auto scheduler_test_function = [&]()
     {
-      std::size_t px_x = std::max(npixels_x / 2, 1);
+      std::size_t px_x = std::max(npixels_x / 2, static_cast<std::size_t>(1));
       
       for(std::size_t px_y = 0; px_y < benchmark_size; ++px_y)
       {
         util::vector2 pixel_position = pixel_index_to_position({px_x, px_y});
 
-        util::scalar magnification = pixel_evaluator.get_pixel_magnification(pixel_position,
-                                                                             sys,
-                                                                             *img_finder);
+        pixel_evaluator.get_pixel_magnification(pixel_position,
+                                                 sys,
+                                                 *img_finder);
       }
     };
     
@@ -198,7 +194,7 @@ private:
     _pixel_size[1] /= npixels_y;
   }
   
-  inline util::vector2 pixel_index_to_position(const std::array<std::size_t>& px_index) const
+  inline util::vector2 pixel_index_to_position(const std::array<std::size_t, 2>& px_index) const
   {
     return {_screen_min_corner[0] + _pixel_size[0] * px_index[0],
             _screen_min_corner[1] + _pixel_size[1] * px_index[1]};

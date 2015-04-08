@@ -112,7 +112,8 @@ public:
                                const std::array<std::size_t, 2>& num_pixels,
                                std::size_t num_samples_per_dim,
                                util::scalar accuracy,
-                               const status_handler_type& handler)
+                               const boost::mpi::communicator& comm,
+                               const typename image_finder<SystemType>::status_handler_type& handler)
   : image_finder<SystemType>(sys, accuracy, handler),
     _differential_delta(0.25 * accuracy),
     _newton_tolerance(accuracy),
@@ -139,10 +140,14 @@ public:
       sampling_end_vector[i] += sampling_radius;
     }
     
+    std::size_t avg_pixel_number = 0.5 * (num_pixels[0] + num_pixels[1]);
+    
     this->_inverter = inverter_ptr_type(new inverter_type(pixel_min_coordinates,
                                                           pixel_max_coordinates,
                                                           sampling_start_vector,
-                                                          sampling_end_vector));
+                                                          sampling_end_vector,
+                                                          avg_pixel_number,
+                                                          comm));
     
     
     auto function_evaluator = [this](const inverter_type::domain_vector& domain_vec) -> inverter_type::codomain_vector
@@ -168,7 +173,7 @@ public:
                           std::vector<util::vector2>& out) const
   {
     out.clear();
-    std::vector<util::vector2> start_positions = _inverter.inverse(source_plane_pos);
+    std::vector<util::vector2> start_positions = _inverter->inverse(source_plane_pos);
     
     // Define the function of which we want determine the root using Newton's method
     auto ray_equation = [&](const util::vector2& lens_plane_pos) -> util::vector2
@@ -210,7 +215,7 @@ private:
   util::scalar _differential_delta;
   util::scalar _newton_tolerance;
   std::size_t _max_iterations;
-  numeric::function_inverter<util::scalar, 2, util::scalar, 2> _inverter;
+  inverter_ptr_type _inverter;
 };
 
 //TODO
@@ -219,7 +224,7 @@ class root_tracing : public image_finder<SystemType>
 {
 public:
   root_tracing(const SystemType* sys, util::scalar accuracy,
-               const status_handler_type& handler)
+               const  typename image_finder<SystemType>::status_handler_type& handler)
   : image_finder<SystemType>(sys, accuracy, handler)
   {
     
@@ -246,9 +251,9 @@ class complex_polynomial : public image_finder<SystemType>
 public:
   typedef std::complex<util::scalar> complex_type;
   
-  complex_polynomial<SystemType>(const SystemType* sys, util::scalar accuracy,
-                                 const status_handler_type& handler)
-  : image_finder(sys, accuracy, handler),
+  complex_polynomial(const SystemType* sys, util::scalar accuracy,
+                     const typename image_finder<SystemType>::status_handler_type& handler)
+  : image_finder<SystemType>(sys, accuracy, handler),
     _newton_tolerance(accuracy),
     _differential_delta(0.25 * accuracy)
   {
@@ -275,7 +280,8 @@ private:
   
   inline std::size_t get_multiplicity(const util::vector2& root) const
   {
-    
+    // TODO
+    return 0;
   }
 
   inline bool all_roots_found(const std::vector<root>& root_list) const
@@ -302,7 +308,7 @@ public:
   newton_crown(const SystemType* sys,
                util::scalar crown_radius,
                util::scalar accuracy, 
-               const status_handler_type& handler)
+               const  typename image_finder<SystemType>::status_handler_type& handler)
   : image_finder<SystemType>(sys, accuracy, handler),
     _shape_template(util::vector2({0.0, 0.0}), crown_radius),
     _differential_delta(0.25 * accuracy),
@@ -328,15 +334,15 @@ public:
       return lhs;
     };
     
-    for(auto star = _system->get_deflector().begin_stars();
-      star != _system->get_deflector().end_stars(); ++star)
+    for(auto star = this->_system->get_deflector().begin_stars();
+      star != this->_system->get_deflector().end_stars(); ++star)
     {
       util::vector2 star_position = star->get_position();
       
       geometry::equilateral_polygon<N_start_points> newton_start_points = 
         _shape_template;
       
-      newton_start_points.shift_coordinates(star_postion);
+      newton_start_points.shift_coordinates(star_position);
       
       for(std::size_t vertex_index = 0; 
         vertex_index < newton_start_points.num_hull_vertices();

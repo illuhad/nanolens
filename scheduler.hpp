@@ -74,7 +74,7 @@ public:
   
   bool is_scheduled_to_process(std::size_t job_entity_index, int process_rank) const
   {
-    assert(process_rank < _all_begins.size());
+    assert(static_cast<std::size_t>(process_rank) < _all_begins.size());
     
     return _all_begins[process_rank] <= job_entity_index && 
           job_entity_index <= _all_ends[process_rank];
@@ -82,9 +82,9 @@ public:
   
   int get_assigned_process_rank(std::size_t job_entity_index) const
   {
-    for(int i = 0; i < _all_begins.size(); ++i)
-      if(is_scheduled_to_process(job_entity_index, i))
-        return i;
+    for(std::size_t i = 0; i < _all_begins.size(); ++i)
+      if(is_scheduled_to_process(job_entity_index, static_cast<int>(i)))
+        return static_cast<int>(i);
     return -1;
   }
   
@@ -95,7 +95,7 @@ public:
   
   std::size_t get_num_assigned_jobs(int rank) const
   {
-    assert(rank < _all_begins.size());
+    assert(static_cast<std::size_t>(rank) < _all_begins.size());
     return _all_ends[rank] - _all_begins[rank] + 1;
   }
   

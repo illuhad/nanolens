@@ -125,6 +125,8 @@ public:
       
       result += tri.area();
     }
+    
+    return result;
   }
   
   bool contains_point(const util::vector2& point) const
@@ -142,10 +144,6 @@ public:
     return false;
   }
   
-  std::size_t num_vertices() const
-  {
-    return _vertices.size();
-  }
   
   std::size_t num_triangles() const
   {
@@ -161,13 +159,13 @@ public:
   const util::vector2& operator[](std::size_t index) const
   {
     assert(index < _vertices.size());
-    return _points[index];
+    return _vertices[index];
   }
 
   util::vector2& operator[](std::size_t index)
   {
     assert(index < _vertices.size());
-    return _points[index];
+    return _vertices[index];
   }
 
   

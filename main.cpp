@@ -76,7 +76,7 @@ int main(int argc, char** argv)
     {
       if(status.get_schedule() != nullptr)
       {
-        master_cout << "Performance metric of current task schedule:\n";
+        master_cout << "\nPerformance metric of current task schedule:\n";
 
         std::vector<double> performances = status.get_schedule()->get_relative_performances();
 
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
       master_cout << "\r" << msg;
       std::cout.flush();
     }
-  }
+  };
   
   
   engine.run(lensing_system, world, status_handler);

@@ -70,7 +70,7 @@ public:
     return _data[position.data()];
   }
   
-  const ValueType& operator[](const scalar_array_type& position) const
+  const ValueType& operator[](const index_type& position) const
   {
     return _data[position.data()];
   }

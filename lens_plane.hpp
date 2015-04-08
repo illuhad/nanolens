@@ -128,7 +128,7 @@ namespace nanolens
           result = distance;
       }
       
-      if(result = 0.0)
+      if(result == 0.0)
         return 2.0;
       
       return result;

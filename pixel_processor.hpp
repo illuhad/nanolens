@@ -38,11 +38,11 @@ public:
   
   template<class SystemType>
   util::scalar get_pixel_magnification(const util::vector2& pixel_position,
-                                       SystemType& sys
+                                       SystemType& sys,
                                       image_finder<SystemType>& img_finder) const
   {
     std::vector<util::vector2> image_positions;
-    img_finder.get_images(_pos, image_positions);
+    img_finder.get_images(pixel_position, image_positions);
     
     util::scalar magnification = 0.0;
     for(const util::vector2& img : image_positions)

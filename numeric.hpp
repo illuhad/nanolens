@@ -147,7 +147,7 @@ public:
     for(std::size_t job_id = 0; job_id < num_jobs; ++job_id)
     {
       domain_vector current_position = _domain_min_extent;
-      current_position[0] = static_cast<DomainFieldType>(job_id * step_sizes[i] + _domain_min_extent[0]);     
+      current_position[0] = static_cast<DomainFieldType>(job_id * step_sizes[0] + _domain_min_extent[0]);     
       
       std::array<std::size_t, DomainDimension> step_indices;
       for(std::size_t i = 0; i < DomainDimension; ++i)
@@ -239,7 +239,7 @@ private:
   int _rank;
 };
 
-template<class ScalarType, class N>
+template<class ScalarType, std::size_t N>
 class jacobian
 {
 public:
@@ -324,7 +324,7 @@ class newton
 {
 public:
   typedef std::array<ScalarType, Dimension> Rn_vector;
-  typedef std::function<Rn_vector (const Rn_vector&>)> function_type;
+  typedef std::function<Rn_vector (const Rn_vector&)> function_type;
   
   
   newton(const Rn_vector& starting_point,
@@ -383,7 +383,7 @@ public:
       Rn_vector residual = _f(_current_position);
       this->_resid = 0.0;
       
-      for(std::size_t i = 0; i < N; ++i)
+      for(std::size_t i = 0; i < Dimension; ++i)
         this->_resid += std::abs(residual[i]);
     }
   }
