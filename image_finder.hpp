@@ -39,12 +39,6 @@ public:
   : _system(sys), _accuracy(accuracy), _handler(handler)
   {
     assert(sys != nullptr);
-    
-    _dL_over_dLS = _system->get_observer().distance_to_previous_plane() /
-                   _system->get_deflector().distance_to_previous_plane();
-    
-    _dLS_over_dL = _system->get_deflector().distance_to_previous_plane() /
-                   _system->get_observer().distance_to_previous_plane();
   }
   
   virtual ~image_finder()
@@ -54,39 +48,6 @@ public:
   virtual void get_images(const util::vector2& source_plane_pos,
                           std::vector<util::vector2>& out) = 0;
 protected:
-  /// Obtain the deflection angle
-  inline util::vector2 alpha(const util::vector2& lens_plane_position) const
-  {
-    util::vector2 out;
-    _system->get_deflector().get_deflection_angle(lens_plane_position, out);
-    return out;
-  }
-  
-  inline util::vector2 ray_function(const util::vector2& lens_plane_pos) const
-  {
-    // ray equation:
-    // 0 = (1+dL/dLS)ksi + alpha(ksi)*dL - pos * dL/dLS - pos_observer
-    // ray function:
-    // pos = (1.0 + dLS/dL)ksi + alpha(ksi) * d_LS - p_obs * d_LS/d_L
-    
-    util::vector2 out = lens_plane_pos;
-    
-    util::scale(out, 1.0 + this->_dLS_over_dL);
-    
-    util::vector2 deflection = alpha(lens_plane_pos);
-    util::scale(deflection, _system->get_deflector().distance_to_previous_plane());
-    
-    util::add(out, deflection);
-    
-    util::vector2 obs_position_term = _system->get_observer().get_observer_position();
-    util::scale(obs_position_term, this->_dLS_over_dL);    
-    util::sub(out, obs_position_term);
-    
-    return out;
-  }
-  
-  util::scalar _dL_over_dLS;
-  util::scalar _dLS_over_dL;
   
   const SystemType* _system;
   util::scalar _accuracy;
@@ -152,7 +113,7 @@ public:
     
     auto function_evaluator = [this](const inverter_type::domain_vector& domain_vec) -> inverter_type::codomain_vector
     {
-      return this->ray_function(domain_vec);
+      return this->_system->ray_function(domain_vec);
     }; 
     
     scheduler schedule = _inverter->create_schedule(
@@ -179,7 +140,7 @@ public:
     auto ray_equation = [&](const util::vector2& lens_plane_pos) -> util::vector2
     {
       // left hand side of the ray equation
-      util::vector2 lhs = this->ray_function(lens_plane_pos);
+      util::vector2 lhs = this->_system->ray_function(lens_plane_pos);
       //subtract right hand side from left hand side
       util::sub(lhs, source_plane_pos);
       
@@ -312,7 +273,7 @@ public:
     _shape_template(util::vector2({0.0, 0.0}), 1.0),
     _differential_delta(0.25 * accuracy),
     _newton_tolerance(accuracy),
-    _max_iterations(100),
+    _max_iterations(50),
     _roots_epsilon(4 * accuracy)
   {
   }
@@ -326,7 +287,7 @@ public:
     auto ray_equation = [&](const util::vector2& lens_plane_pos) -> util::vector2
     {
       // left hand side of the ray equation
-      util::vector2 lhs = this->ray_function(lens_plane_pos);
+      util::vector2 lhs = this->_system->ray_function(lens_plane_pos);
       //subtract right hand side from left hand side
       util::sub(lhs, source_plane_pos);
       
@@ -359,7 +320,7 @@ public:
                                                   _differential_delta, ray_equation);
       
         newton2d.run(_newton_tolerance, _max_iterations);
-        
+
         if(newton2d.was_successful())
         {
           if(is_new_root(out, newton2d.get_position()))

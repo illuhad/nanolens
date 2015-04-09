@@ -25,43 +25,40 @@
 #include "util.hpp"
 #include "image_finder.hpp"
 #include "ray.hpp"
+#include "numeric.hpp"
+#include "magnification.hpp"
 
 namespace nanolens{
 
-template<std::size_t N_rays>
+template<class MagnificationCalculatorType>
 class pixel_processor
 {
 public:
-  pixel_processor(util::scalar polygon_radius)
-  : _template_shape(util::vector2({0.0, 0.0}), polygon_radius)
+  pixel_processor(util::scalar accuracy)
+  : _accuracy(accuracy),
+    _magnification_calculator(accuracy)
   {}
   
   template<class SystemType>
   util::scalar get_pixel_magnification(const util::vector2& pixel_position,
                                        SystemType& sys,
-                                      image_finder<SystemType>& img_finder) const
+                                      image_finder<SystemType>& img_finder)
   {
     std::vector<util::vector2> image_positions;
     img_finder.get_images(pixel_position, image_positions);
     
+    
     util::scalar magnification = 0.0;
+    
     for(const util::vector2& img : image_positions)
-    {
-      // Convert positions in the lens plane to angles
-      util::vector2 angle = img;
-      util::sub(angle, pixel_position);
-      util::scale(angle, 1.0 / sys.get_deflector().distance_to_previous_plane());
-      
-      ray_bundle<N_rays> bundle(_template_shape, pixel_position, angle);
-      sys.traverse(bundle);
-      
-      magnification += bundle.get_magnification();
-    }
+      magnification += _magnification_calculator.get_magnification(sys, pixel_position, img);
+    
     return magnification;
   }
   
 private:
-  geometry::equilateral_polygon<N_rays> _template_shape;
+  MagnificationCalculatorType _magnification_calculator;
+  util::scalar _accuracy;
 };
 
 }

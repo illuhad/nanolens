@@ -246,6 +246,8 @@ public:
   typedef std::array<ScalarType, N> Rn_vector;
   typedef std::function<Rn_vector (const Rn_vector&)> function_type;
   
+  jacobian() = default;
+  
   jacobian(const Rn_vector& pos, ScalarType differential_delta,
            const function_type& f)
   : _f(f)
@@ -342,12 +344,12 @@ public:
   
   void single_iteration()
   {
-    jacobian<ScalarType,Dimension> J(this->_current_position,
+    this->_jacobian = jacobian<ScalarType,Dimension>(this->_current_position,
                                      this->_delta, _f);
     
     util::matrix_nxn<ScalarType, Dimension> J_inverse;
     
-    invert_matrix(J.matrix(), J_inverse);
+    invert_matrix(_jacobian.matrix(), J_inverse);
     
     Rn_vector function_value = _f(this->_current_position);
     
@@ -420,7 +422,13 @@ public:
   {
     return _num_iter;
   }
+  
+  const jacobian<ScalarType, Dimension>& get_current_jacobian() const
+  {
+    return _jacobian;
+  }
 private:
+  jacobian<ScalarType, Dimension> _jacobian;
   ScalarType _requested_tolerance;
   ScalarType _delta;
   ScalarType _resid;

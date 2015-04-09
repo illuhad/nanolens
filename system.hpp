@@ -42,7 +42,7 @@ public:
   : _deflector(new lens_plane(deflectors, plane_distances[1])),
     _observer(new observer_plane({0.0, 0.0}, plane_distances[0]))
   {
-    init_einstein_radius();
+    init();
   }
 
 
@@ -82,6 +82,8 @@ public:
     }
 
     _deflector = std::shared_ptr<lens_plane>(new lens_plane(stars, plane_distances[0]));
+    
+    init();
 
 
   }
@@ -115,19 +117,60 @@ public:
     return system(std::vector<lens_plane::star>(), 
       {_deflector->distance_to_previous_plane(),_observer->distance_to_previous_plane()});
   }
+  
+  /// Obtain the total deflection angle
+  inline util::vector2 alpha(const util::vector2& lens_plane_position) const
+  {
+    util::vector2 out;
+    _deflector->get_deflection_angle(lens_plane_position, out);
+    return out;
+  }
+  
+  inline util::vector2 ray_function(const util::vector2& lens_plane_pos) const
+  {
+    // ray equation:
+    // 0 = (1+dL/dLS)ksi + alpha(ksi)*dL - pos * dL/dLS - pos_observer
+    // ray function:
+    // pos = (1.0 + dLS/dL)ksi + alpha(ksi) * d_LS - p_obs * d_LS/d_L
+    
+    util::vector2 out = lens_plane_pos;
+    
+    util::scale(out, 1.0 + this->_dLS_over_dL);
+    
+    util::vector2 deflection = alpha(lens_plane_pos);
+    util::scale(deflection, this->get_deflector().distance_to_previous_plane());
+    
+    util::add(out, deflection);
+    
+    util::vector2 obs_position_term = _observer->get_observer_position();
+    util::scale(obs_position_term, this->_dLS_over_dL);    
+    util::sub(out, obs_position_term);
+    
+    return out;
+  }
+  
 private:
   void init_einstein_radius(util::scalar d_ls, util::scalar d_l, util::scalar d_s)
   {
     _einstein_radius = lens_plane::calculate_einstein_radius(d_ls, d_l, d_s);
   }
 
-  void init_einstein_radius()
+  void init()
   {
     init_einstein_radius(_deflector->distance_to_previous_plane(),
             _observer->distance_to_previous_plane(),
             get_distance_from_source_to_observer());
+    
+        
+    _dL_over_dLS = _observer->distance_to_previous_plane() /
+                   _deflector->distance_to_previous_plane();
+    
+    _dLS_over_dL = _deflector->distance_to_previous_plane() /
+                   _observer->distance_to_previous_plane();
   }
-
+  
+  util::scalar _dL_over_dLS;
+  util::scalar _dLS_over_dL;
   std::shared_ptr<observer_plane> _observer;
   std::shared_ptr<lens_plane> _deflector;
 

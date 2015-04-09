@@ -69,9 +69,9 @@ public:
     // Find images
     status_handler(status_info("Initializing image finding algorithm"));
     std::shared_ptr<image_finder<system>> img_finder(
-          new image_finders::newton_crown<system, 32>(&sys, _accuracy, status_handler));
+          new image_finders::newton_crown<system, 65>(&sys, _accuracy, status_handler));
     
-    pixel_processor<16> pixel_evaluator(8 * _accuracy);
+    pixel_processor<magnification::by_lensing_jacobian> pixel_evaluator(2.0 * _accuracy);
     
     scheduler pixel_schedule(comm);
     
