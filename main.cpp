@@ -43,12 +43,12 @@ int main(int argc, char** argv)
 
   nanolens::system lensing_system("stars.dat", {1.0, 1.0});
 
-  std::array<std::size_t, 2> npixels = {512, 512};
-  //nanolens::util::vector2 physical_size = {0.07, 0.07};
-  //nanolens::util::vector2 screen_position = {0.37, 0.63};
+  std::array<std::size_t, 2> npixels = {1024, 1024};
+  nanolens::util::vector2 physical_size = {0.07, 0.07};
+  nanolens::util::vector2 screen_position = {0.37, 0.63};
   
-  nanolens::util::vector2 physical_size = {1.6, 1.6};
-  nanolens::util::vector2 screen_position = {0.0, 0.0};
+  //nanolens::util::vector2 physical_size = {1.6, 1.6};
+  //nanolens::util::vector2 screen_position = {0.0, 0.0};
 
   master_cout << "Starting computation..." << std::endl;
 
