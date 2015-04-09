@@ -306,11 +306,10 @@ public:
   typedef util::grid2d<util::scalar, bool> grid_type;
   
   newton_crown(const SystemType* sys,
-               util::scalar crown_radius,
                util::scalar accuracy, 
                const  typename image_finder<SystemType>::status_handler_type& handler)
   : image_finder<SystemType>(sys, accuracy, handler),
-    _shape_template(util::vector2({0.0, 0.0}), crown_radius),
+    _shape_template(util::vector2({0.0, 0.0}), 1.0),
     _differential_delta(0.25 * accuracy),
     _newton_tolerance(accuracy),
     _max_iterations(100),
@@ -334,13 +333,21 @@ public:
       return lhs;
     };
     
-    for(auto star = this->_system->get_deflector().begin_stars();
-      star != this->_system->get_deflector().end_stars(); ++star)
+    for(std::size_t star_idx = 0; star_idx < this->_system->get_deflector().get_num_stars();
+      ++star_idx)
     {
-      util::vector2 star_position = star->get_position();
+      util::vector2 star_position 
+        = this->_system->get_deflector().get_star_by_index(star_idx).get_position();
       
       geometry::equilateral_polygon<N_start_points> newton_start_points = 
         _shape_template;
+      
+      //Scale radius
+      util::scalar radius 
+        = 0.2 * this->_system->get_deflector().get_distance_to_nearest_star_for_star(star_idx);
+      
+      for(std::size_t vertex = 0; vertex < newton_start_points.num_hull_vertices(); ++vertex)
+        util::scale(newton_start_points[vertex], radius);
       
       newton_start_points.shift_coordinates(star_position);
       

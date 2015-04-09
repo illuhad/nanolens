@@ -69,7 +69,7 @@ public:
     // Find images
     status_handler(status_info("Initializing image finding algorithm"));
     std::shared_ptr<image_finder<system>> img_finder(
-          new image_finders::newton_crown<system, 11>(&sys, 100.0 * _accuracy, _accuracy, status_handler));
+          new image_finders::newton_crown<system, 32>(&sys, _accuracy, status_handler));
     
     pixel_processor<16> pixel_evaluator(8 * _accuracy);
     
@@ -77,7 +77,7 @@ public:
     
     status_handler(status_info("Scheduling pixel processing"));
     // Calculate 50 pixel to get performance estimates for the scheduler
-    std::size_t benchmark_size = 50;
+    std::size_t benchmark_size = 1000;
     auto scheduler_test_function = [&]()
     {
       std::size_t px_x = std::max(npixels_x / 2, static_cast<std::size_t>(1));

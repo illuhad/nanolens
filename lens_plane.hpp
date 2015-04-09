@@ -92,6 +92,15 @@ namespace nanolens
         else
           _distance_to_nearest_star.push_back(std::numeric_limits<util::scalar>::max());
       }
+      
+      util::scalar min = std::numeric_limits<util::scalar>::max();
+      for(util::scalar distance_square : _distance_to_nearest_star)
+      {
+        if(distance_square < min)
+          min = distance_square;
+      }
+      
+      _min_distance = std::sqrt(min);
     }
     
     void get_deflection_angle(const util::vector2& position, util::vector2& result) const
@@ -132,6 +141,11 @@ namespace nanolens
         return 2.0;
       
       return result;
+    }
+    
+    util::scalar get_min_deflector_distance() const
+    {
+      return _min_distance;
     }
     
     inline star_iterator begin_stars()
@@ -206,6 +220,21 @@ namespace nanolens
       }
       return shift;
     }
+    
+    star& get_star_by_index(std::size_t idx)
+    { return _deflectors[idx]; }
+    
+    const star& get_star_by_index(std::size_t idx) const
+    { return _deflectors[idx]; }
+    
+    std::size_t get_num_stars() const
+    { return _deflectors.size(); }
+    
+    util::scalar get_distance_to_nearest_star_for_star(std::size_t star_idx) const
+    {
+      assert(star_idx < get_num_stars());
+      return _distance_to_nearest_star[star_idx];
+    }
   private:
     std::vector<star>::const_iterator get_nearest_star(const util::vector2& position) const
     {
@@ -254,6 +283,7 @@ namespace nanolens
     std::vector<star> _deflectors;
     std::vector<util::scalar> _distance_to_nearest_star;
     
+    util::scalar _min_distance;
   };
 }
 
