@@ -310,7 +310,7 @@ void invert_matrix(const util::matrix_nxn<ScalarType, N>& mat,
   ScalarType c = mat[1][0];
   ScalarType d = mat[1][1];
   
-  ScalarType det = a * b - c * d;
+  ScalarType det = a * d - b * c;
   
   out[0][0] = d / det;
   out[0][1] = -b / det;
@@ -383,13 +383,12 @@ public:
   {
     _requested_tolerance = tolerance;
     _last_step_size = std::numeric_limits<util::scalar>::max();
+    _resid = std::numeric_limits<util::scalar>::max();
     
-    for(_num_iter = 0; _num_iter < max_iterations && _last_step_size > tolerance;
+    for(_num_iter = 0; _num_iter < max_iterations && _resid > tolerance;
       ++_num_iter)
     {
       single_iteration();
-      
-      std::cout << _resid << " " << _last_step_size << std::endl;
     }
   }
   
@@ -409,7 +408,7 @@ public:
     if(_requested_tolerance == 0.0)
       return false;
     
-    return _last_step_size <= _requested_tolerance;
+    return _resid <= _requested_tolerance;
   }
   
   const util::vector2& get_position() const
