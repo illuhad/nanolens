@@ -111,6 +111,20 @@ public:
   static constexpr std::size_t num_vertices()
   { return N + 1; }
   
+  polygon()
+  {
+    // Initialize default triangulation
+        
+    for(std::size_t i = 0; i < N - 1; ++i)
+    {
+      // define triangle between the current vertex on the hull i, the
+      // adjecent vertex at i + 1 and the central vertex at N
+      this->_triangles[i] = {i, i + 1, N};
+    }
+    // special treatment for the last triangle
+    this->_triangles[N - 1] = {N - 1, 0, N};
+  }
+  
   virtual ~polygon(){}
                  
   util::scalar area() const
@@ -195,7 +209,7 @@ public:
   equilateral_polygon(const util::vector2& center,
                       util::scalar radius)
   {
-    _vertices[N] = center;
+    this->_vertices[N] = center;
     
     util::scalar pi = boost::math::constants::pi<util::scalar>();
     
@@ -203,25 +217,13 @@ public:
     {
       util::scalar current_angle = i * 2.0 * pi / static_cast<util::scalar>(N);
       
-      _vertices[i] = {radius * std::cos(current_angle), radius * std::sin(current_angle)};
+      this->_vertices[i] = {radius * std::cos(current_angle), radius * std::sin(current_angle)};
     }
-    
-    for(std::size_t i = 0; i < N - 1; ++i)
-    {
-      // define triangle between the current vertex on the hull i, the
-      // adjecent vertex at i + 1 and the central vertex at N
-      _triangles[i] = {i, i + 1, N};
-    }
-    // special treatment for the last triangle
-    _triangles[N - 1] = {N - 1, 0, N};
+
   }
   
   virtual ~equilateral_polygon(){}
-private:
-  // There are N vertices on the sides of the polygon and one at the center
-  std::array<util::vector2, N + 1> _vertices;
-  
-  std::array<std::array<std::size_t, 3>, N> _triangles;
+
 };
 
 }

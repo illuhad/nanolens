@@ -69,21 +69,21 @@ int main(int argc, char** argv)
   {
     if(status.get_current_notification() != "")
     {
-      std::cout << "Message from process " << world.rank() << ": " << status.get_current_notification() << std::endl;
+      std::cout << "\nMessage from process " << world.rank() << ": " << status.get_current_notification() << std::endl;
     }
     
     if(world.rank() == 0)
     {
       if(status.get_schedule() != nullptr)
       {
-        master_cout << "\nPerformance metric of current task schedule:\n";
+        master_cout << "\n\nPerformance metric of current task schedule:\n";
 
         std::vector<double> performances = status.get_schedule()->get_relative_performances();
 
         for(std::size_t i = 0; i < performances.size(); ++i)
           master_cout << "Process " << i << ": " << performances[i]/performances[0] << "x\n";
         
-        master_cout << "(relative to process 0)\n";
+        master_cout << "(relative to process 0)\n\n";
       }
 
       std::string clear_string = "\r";

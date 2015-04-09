@@ -335,7 +335,8 @@ public:
     _resid(0.0),
     _f(f),
     _requested_tolerance(0.0),
-    _last_step_size(0.0)
+    _last_step_size(0.0),
+    _num_iter(0)
   {}
   
   
@@ -366,6 +367,14 @@ public:
       this->_current_position[i] -= correction[i];
       this->_last_step_size += util::square(correction[i]);
     }
+    
+        // Update residual
+    Rn_vector residual = _f(_current_position);
+    this->_resid = 0.0;
+
+    for(std::size_t i = 0; i < Dimension; ++i)
+      this->_resid += std::abs(residual[i]);
+      
   } 
   
   
@@ -373,18 +382,14 @@ public:
   void run(ScalarType tolerance, std::size_t max_iterations)
   {
     _requested_tolerance = tolerance;
+    _last_step_size = std::numeric_limits<util::scalar>::max();
     
-    for(std::size_t iteration = 0; iteration < max_iterations && _last_step_size > tolerance;
-      ++iteration)
+    for(_num_iter = 0; _num_iter < max_iterations && _last_step_size > tolerance;
+      ++_num_iter)
     {
       single_iteration();
       
-      // Update residual
-      Rn_vector residual = _f(_current_position);
-      this->_resid = 0.0;
-      
-      for(std::size_t i = 0; i < Dimension; ++i)
-        this->_resid += std::abs(residual[i]);
+      std::cout << _resid << " " << _last_step_size << std::endl;
     }
   }
   
@@ -411,11 +416,17 @@ public:
   {
     return _current_position;
   }
+  
+  std::size_t get_num_iterations() const
+  {
+    return _num_iter;
+  }
 private:
   ScalarType _requested_tolerance;
   ScalarType _delta;
   ScalarType _resid;
   ScalarType _last_step_size;
+  std::size_t _num_iter;
   Rn_vector _current_position;
   function_type _f;
 };

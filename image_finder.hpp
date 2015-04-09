@@ -353,10 +353,14 @@ public:
       
         newton2d.run(_newton_tolerance, _max_iterations);
         
+        std::cout << "newton result "<<vertex_index<<": "<<newton2d.get_position()[0] << " " << newton2d.get_position()[1] << " num_iter = " <<newton2d.get_num_iterations()<<" resid = " << newton2d.get_residual()<<std::endl;
+        
         if(newton2d.was_successful())
         {
           if(is_new_root(out, newton2d.get_position()))
+          {
             out.push_back(newton2d.get_position());
+          }
         }
       }
     }
