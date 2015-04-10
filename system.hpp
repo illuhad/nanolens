@@ -37,7 +37,7 @@ class system
 public:
   static const std::size_t num_planes = 2;
 
-  explicit system(const std::vector<lens_plane::star>& deflectors,
+  explicit system(const std::vector<star>& deflectors,
                   const std::array<util::scalar, num_planes>& plane_distances = {1.0, 1.0})
   : _deflector(new lens_plane(deflectors, plane_distances[1])),
     _observer(new observer_plane({0.0, 0.0}, plane_distances[0]))
@@ -61,7 +61,7 @@ public:
 
     input_file.open(star_file_.c_str());
 
-    std::vector<lens_plane::star> stars;
+    std::vector<star> stars;
 
     if(input_file.is_open())
     {
@@ -76,7 +76,7 @@ public:
 
         util::scale(position, lens_plane_einstein_radius);
 
-        lens_plane::star new_star(position, mass);
+        star new_star(position, mass);
         stars.push_back(new_star);
       }
     }
@@ -114,7 +114,7 @@ public:
 
   system get_empty_system() const
   {
-    return system(std::vector<lens_plane::star>(), 
+    return system(std::vector<star>(), 
       {_deflector->distance_to_previous_plane(),_observer->distance_to_previous_plane()});
   }
   

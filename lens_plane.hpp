@@ -24,6 +24,7 @@
 #include <cmath>
 #include "util.hpp"
 #include "plane.hpp"
+#include "star.hpp"
 
 namespace nanolens
 {
@@ -32,40 +33,6 @@ namespace nanolens
   {
   public:
     
-    class star
-    {
-    public:
-      star(const util::vector2& pos, util::scalar mass)
-      : _mass(mass), _position(pos), _deflection_constant(0.)
-      {
-        _deflection_constant = 4 * util::G * _mass / util::square(util::c);
-      }
-      
-      inline void calculate_deflection_angle(const util::vector2& position,
-                                            util::vector2& result) const
-      { 
-        result = this->_position;
-        util::sub(result, position);
-        
-        util::scalar squared_norm = util::dot(result, result);
-        
-        
-        util::scalar factor = _deflection_constant / squared_norm;
-        
-        util::scale(result, factor);
-      }
-      
-      const util::vector2& get_position() const
-      { return _position; }
-      
-      util::scalar get_mass() const
-      { return _mass; }
-    private:
-      util::vector2 _position;
-      util::scalar _mass;
-      util::scalar _deflection_constant;
-      
-    };
     
     typedef std::vector<star>::iterator star_iterator;
     typedef std::vector<star>::const_iterator const_star_iterator;

@@ -28,6 +28,7 @@
 #include "geometry.hpp"
 #include "screen.hpp"
 #include "magnification.hpp"
+#include "boost/serialization/array.hpp"
 
 namespace nanolens{
 
@@ -179,6 +180,140 @@ private:
   util::scalar _newton_tolerance;
   std::size_t _max_iterations;
   inverter_ptr_type _inverter;
+};
+
+template<class SystemType>
+class inverse_ray_shooting : public image_finder<SystemType>
+{
+public:
+  inverse_ray_shooting(const SystemType* sys,
+                       const  typename image_finder<SystemType>::status_handler_type& handler,
+                       const screen_descriptor& screen,
+                       const util::vector2& sampling_center,
+                       const util::vector2& sampling_distance,
+                       const std::array<std::size_t, 2>& num_steps,
+                       const boost::mpi::communicator& comm,
+                       bool only_count_hits = true)
+  : image_finder<SystemType>(sys, 0.0, handler),
+    _roots_at_pixel(screen.get_corner_of_min_extent(), 
+                    screen.get_corner_of_max_extent(),
+                    screen.get_num_pixels())
+  {
+    util::vector2 stepwidth;
+    for(std::size_t i = 0; i < stepwidth.size(); ++i)
+      stepwidth[i] = sampling_distance[i] / 
+                      static_cast<util::scalar>(num_steps[i]);
+    
+    util::grid2d<util::scalar, std::vector<util::vector2>> test_grid(
+                    screen.get_corner_of_min_extent(), 
+                    screen.get_corner_of_max_extent(),
+                    screen.get_num_pixels());
+    
+    util::vector2 min_sampling_corner = sampling_center;
+    util::vector2 half_distance = sampling_distance;
+    util::scale(half_distance, 0.5);
+    util::sub(min_sampling_corner, half_distance);
+    
+    this->_handler(status_info("Scheduling inverse rayshooting"));
+    
+    std::size_t benchmark_size = 10000;
+    auto test_function = [&]()
+    {
+      util::scalar step_size = sampling_distance[1] /
+                                static_cast<util::scalar>(benchmark_size);
+      
+      for(std::size_t i = 0; i < benchmark_size; ++i)
+      {
+        util::vector2 current_position = {sampling_center[0], 
+                                          min_sampling_corner[1] + i * step_size};
+        
+        util::vector2 source_plane_pos = this->_system->ray_function(current_position);
+        
+        if(only_count_hits)
+        {
+          if(test_grid[source_plane_pos].size() == 0)
+            test_grid[source_plane_pos].push_back({1.0, 0.0});
+          else
+            test_grid[source_plane_pos][0][0] += 1.0;
+        }
+        else
+          test_grid[source_plane_pos].push_back(current_position);
+      }
+    };
+    
+    scheduler ray_shooting_schedule(comm);
+    ray_shooting_schedule.run(num_steps[0], test_function);
+    
+    this->_handler(status_info("Scheduling complete", &ray_shooting_schedule, ""));
+    
+    std::size_t num_jobs_done = 0;
+    for(std::size_t x_idx = 0; x_idx < num_steps[0]; ++x_idx)
+    { 
+      if(ray_shooting_schedule.is_scheduled_to_this_process(x_idx))
+      {
+        double progress = static_cast<double>(num_jobs_done) / 
+                          static_cast<double>(ray_shooting_schedule.get_num_assigned_jobs());
+        
+        this->_handler(status_info("Evaluating ray function", nullptr, "", progress));
+        
+        for(std::size_t y_idx = 0; y_idx < num_steps[1]; ++y_idx)
+        {
+          util::vector2 current_position = {min_sampling_corner[0] + x_idx * stepwidth[0],
+                                            min_sampling_corner[1] + y_idx * stepwidth[1]};
+          
+          util::vector2 source_plane_pos = this->_system->ray_function(current_position);
+        
+          if(only_count_hits)
+          {
+            if(_roots_at_pixel[source_plane_pos].size() == 0)
+              _roots_at_pixel[source_plane_pos].push_back({1.0, 0.0});
+            else
+              _roots_at_pixel[source_plane_pos][0][0] += 1.0;
+          }
+          else
+            _roots_at_pixel[source_plane_pos].push_back(current_position);
+
+        }
+        
+        ++num_jobs_done;
+      }
+    }
+    
+    
+    this->_handler(status_info("Distributing results among processes"));
+    
+    _roots_at_pixel.allcombine_parallel_grid(comm, [only_count_hits](std::vector<util::vector2>& local,
+                                                      const std::vector<util::vector2>& received)
+    {
+      if(only_count_hits)
+      {
+        if(!received.empty())
+        {
+          if(local.empty())
+            local.push_back(received[0]);
+          else
+            local[0][0] += received[0][0];
+        }
+      }
+      else
+      {
+        for(const util::vector2& point : received)
+          local.push_back(point);
+      }
+    });
+    
+  }
+  
+    virtual void get_images(const util::vector2& source_plane_pos,
+                          std::vector<util::vector2>& out)
+  {
+      out = _roots_at_pixel[source_plane_pos];
+  }
+  
+  virtual ~inverse_ray_shooting(){}
+  
+private:
+  util::grid2d<util::scalar, std::vector<util::vector2>> _roots_at_pixel;
 };
 
 

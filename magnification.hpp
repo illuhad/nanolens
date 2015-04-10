@@ -81,6 +81,37 @@ private:
   geometry::equilateral_polygon<N_polygon_vertices> _template_shape;
 };
 
+// Does not really calculate magnifications, only counts images
+class by_image_count
+{
+public:
+  by_image_count(util::scalar dummy_accuracy_argument) {}
+  
+  template <class SystemType>
+  util::scalar get_magnification(const SystemType& sys, 
+                                 const util::vector2& pixel_position,
+                                 const util::vector2& image_position) const
+  {
+    return 1.0;
+  }
+};
+
+// required to evaluate result of the inverse ray shooting image finder, if
+// the only_count_hits option has been enabled
+class by_compact_image_count
+{
+public:
+  by_compact_image_count(util::scalar dummy_accuracy_argument) {}
+  
+  template <class SystemType>
+  util::scalar get_magnification(const SystemType& sys, 
+                                 const util::vector2& pixel_position,
+                                 const util::vector2& image_position) const
+  {
+    return image_position[0];
+  }
+};
+
 }
 
 }

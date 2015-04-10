@@ -166,6 +166,15 @@ public:
     
     boost::mpi::broadcast(comm, this->_data, master_rank);
   }
+  
+  inline bool contains_point(const scalar_array_type& point) const
+  {
+    for(std::size_t i = 0; i < Dimension; ++i)
+      if(point[i] < _min[i] || point[i] >= _max[i])
+        return false;
+    
+    return true;
+  }
 private:
   
   

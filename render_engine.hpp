@@ -69,7 +69,7 @@ public:
     // Find images
     status_handler(status_info("Initializing image finding algorithm"));
     
-    
+/*    
     std::shared_ptr<image_finder<system>> backend_img_finder(
           new image_finders::newton_crown<system, 256>(&sys, _accuracy, status_handler));
     
@@ -80,7 +80,11 @@ public:
                                                    backend_img_finder.get(),
                                                    *_screen));
     
-    pixel_processor<magnification::by_lensing_jacobian> pixel_evaluator(2.0 * _accuracy);
+ */
+    std::shared_ptr<image_finder<system>> img_finder(
+      new image_finders::inverse_ray_shooting<system>(&sys, status_handler, *_screen, {0.0,0.0}, {8.0, 8.0}, {10000, 10000}, comm));
+      
+    pixel_processor<magnification::by_compact_image_count> pixel_evaluator(2.0 * _accuracy);
     
     scheduler pixel_schedule(comm);
     

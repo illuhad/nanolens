@@ -458,7 +458,7 @@ namespace nanolens
       friend class boost::serialization::access;
       
       template<class Archive>
-      void save(Archive& ar, const unsigned int version)
+      void save(Archive& ar, const unsigned int version) const
       {
         ar & sizes_;
         for(size_t i = 0; i < buffer_size_; ++i)

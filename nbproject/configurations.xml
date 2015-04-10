@@ -11,6 +11,7 @@
       <itemPath>lensing_jacobian.hpp</itemPath>
       <itemPath>magnification.hpp</itemPath>
       <itemPath>mesh.hpp</itemPath>
+      <itemPath>nested_interpolation_grid.hpp</itemPath>
       <itemPath>numeric.hpp</itemPath>
       <itemPath>observer_plane.hpp</itemPath>
       <itemPath>pixel_processor.hpp</itemPath>
@@ -19,6 +20,7 @@
       <itemPath>render_engine.hpp</itemPath>
       <itemPath>scheduler.hpp</itemPath>
       <itemPath>screen.hpp</itemPath>
+      <itemPath>star.hpp</itemPath>
       <itemPath>status.hpp</itemPath>
       <itemPath>system.hpp</itemPath>
       <itemPath>timer.hpp</itemPath>
@@ -84,6 +86,8 @@
       </item>
       <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="nested_interpolation_grid.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="numeric.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="observer_plane.hpp" ex="false" tool="3" flavor2="0">
@@ -99,6 +103,8 @@
       <item path="scheduler.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="screen.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="star.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="status.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -156,6 +162,8 @@
       </item>
       <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="nested_interpolation_grid.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="numeric.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="observer_plane.hpp" ex="false" tool="3" flavor2="0">
@@ -171,6 +179,8 @@
       <item path="scheduler.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="screen.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="star.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="status.hpp" ex="false" tool="3" flavor2="0">
       </item>
