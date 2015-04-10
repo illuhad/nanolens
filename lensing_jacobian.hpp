@@ -43,7 +43,7 @@ public:
       return source_plane_pos;
     })
   {}
-  
+    
   inline util::scalar det() const
   {
     return (*this)[0][0] * (*this)[1][1] 

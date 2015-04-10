@@ -276,6 +276,7 @@ public:
   {
     return _j;
   }
+  
 private:
   void calculate_jacobian(const Rn_vector& pos, ScalarType differential_delta)
   { 

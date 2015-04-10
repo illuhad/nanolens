@@ -39,8 +39,8 @@ public:
 
   template <class SystemType>
   util::scalar get_magnification(const SystemType& sys,
-                                         const util::vector2& pixel_position,
-                                         const util::vector2& image_position) const
+                                 const util::vector2& pixel_position,
+                                 const util::vector2& image_position) const
   {
     lensing_jacobian<SystemType> jacobian(image_position, sys, _accuracy);
     

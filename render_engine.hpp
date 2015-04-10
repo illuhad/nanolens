@@ -35,6 +35,7 @@
 #include "image_finder.hpp"
 #include "pixel_processor.hpp"
 #include "status.hpp"
+#include "screen.hpp"
 
 namespace nanolens{
 
@@ -53,8 +54,7 @@ public:
     _size(physical_size),
     _position(screen_position),
     _accuracy(numerical_accuracy),
-    _scaled_screen_size(physical_size),
-    _screen_min_corner(screen_position)
+    _scaled_screen_size(physical_size)
   {}
 
   template<class Function>
@@ -68,8 +68,17 @@ public:
 
     // Find images
     status_handler(status_info("Initializing image finding algorithm"));
+    
+    
+    std::shared_ptr<image_finder<system>> backend_img_finder(
+          new image_finders::newton_crown<system, 256>(&sys, _accuracy, status_handler));
+    
     std::shared_ptr<image_finder<system>> img_finder(
-          new image_finders::newton_crown<system, 65>(&sys, _accuracy, status_handler));
+          new image_finders::root_tracing<system>(&sys, 
+                                                  _accuracy,
+                                                   status_handler,
+                                                   backend_img_finder.get(),
+                                                   *_screen));
     
     pixel_processor<magnification::by_lensing_jacobian> pixel_evaluator(2.0 * _accuracy);
     
@@ -84,7 +93,7 @@ public:
       
       for(std::size_t px_y = 0; px_y < benchmark_size; ++px_y)
       {
-        util::vector2 pixel_position = pixel_index_to_position({px_x, px_y});
+        util::vector2 pixel_position = _screen->get_pixel_coordinates({px_x, px_y});
 
         pixel_evaluator.get_pixel_magnification(pixel_position,
                                                  sys,
@@ -111,7 +120,7 @@ public:
       {
         for(std::size_t px_y = 0; px_y < npixels_y; ++px_y)
         { 
-          util::vector2 pixel_position = pixel_index_to_position({px_x, px_y});
+          util::vector2 pixel_position = _screen->get_pixel_coordinates({px_x, px_y});
 
           util::scalar magnification = pixel_evaluator.get_pixel_magnification(pixel_position,
                                                                                sys,
@@ -182,31 +191,20 @@ private:
     _scaled_screen_size = _size;
     util::scale(_scaled_screen_size, einstein_radius * sys.get_distance_from_source_to_observer());
     
-    _screen_min_corner = _position;
-    util::vector2 half_size = _scaled_screen_size;
-    util::scale(half_size, 0.5);
-    util::sub(_screen_min_corner, half_size);
+    _screen = std::shared_ptr<screen_descriptor>(new screen_descriptor(_num_pixels, 
+                                                                       _scaled_screen_size, 
+                                                                       _position));
     
-    util::scalar npixels_x = static_cast<util::scalar>(_num_pixels[0]);
-    util::scalar npixels_y = static_cast<util::scalar>(_num_pixels[1]);
-    _pixel_size = _scaled_screen_size;
-    _pixel_size[0] /= npixels_x;
-    _pixel_size[1] /= npixels_y;
   }
   
-  inline util::vector2 pixel_index_to_position(const std::array<std::size_t, 2>& px_index) const
-  {
-    return {_screen_min_corner[0] + _pixel_size[0] * px_index[0],
-            _screen_min_corner[1] + _pixel_size[1] * px_index[1]};
-  }
 
+  std::shared_ptr<screen_descriptor> _screen;
   std::array<std::size_t, 2> _num_pixels;
   util::scalar _accuracy;
   util::multi_array<util::scalar> _pixels;
   util::vector2 _size;
   util::vector2 _pixel_size;
   util::vector2 _scaled_screen_size;
-  util::vector2 _screen_min_corner;
   util::vector2 _position;
 };
 

@@ -26,6 +26,8 @@
 #include "util.hpp"
 #include "status.hpp"
 #include "geometry.hpp"
+#include "screen.hpp"
+#include "magnification.hpp"
 
 namespace nanolens{
 
@@ -50,7 +52,7 @@ public:
 protected:
   
   const SystemType* _system;
-  util::scalar _accuracy;
+  const util::scalar _accuracy;
   status_handler_type _handler;
 };
 
@@ -131,7 +133,7 @@ public:
   
   
   virtual void get_images(const util::vector2& source_plane_pos,
-                          std::vector<util::vector2>& out) const
+                          std::vector<util::vector2>& out)
   {
     out.clear();
     std::vector<util::vector2> start_positions = _inverter->inverse(source_plane_pos);
@@ -179,23 +181,115 @@ private:
   inverter_ptr_type _inverter;
 };
 
-//TODO
+
 template<class SystemType>
 class root_tracing : public image_finder<SystemType>
 {
 public:
-  root_tracing(const SystemType* sys, util::scalar accuracy,
-               const  typename image_finder<SystemType>::status_handler_type& handler)
-  : image_finder<SystemType>(sys, accuracy, handler)
+  root_tracing(const SystemType* sys,
+               util::scalar accuracy,
+               const  typename image_finder<SystemType>::status_handler_type& handler,
+               image_finder<SystemType>* reliable_image_finder,
+               const screen_descriptor& screen)
+  : image_finder<SystemType>(sys, accuracy, handler),
+    _backend_finder(reliable_image_finder),
+    _screen(screen),
+    _roots_at_pixel(screen.get_corner_of_min_extent(), 
+                    screen.get_corner_of_max_extent(),
+                    screen.get_num_pixels()),
+    _mag_calculator(accuracy),
+    _differential_delta(0.25 * accuracy)
   {
+    util::vector2 pixel_coordinates = {0.0, 0.0};
     
+    auto ray_equation = [&](const util::vector2& lens_plane_pos) -> util::vector2
+    {
+      // left hand side of the ray equation
+      util::vector2 lhs = this->_system->ray_function(lens_plane_pos);
+      //subtract right hand side from left hand side
+      util::sub(lhs, pixel_coordinates);
+      
+      return lhs;
+    };
+    
+    
+    for(std::size_t px_x = 0; px_x < _screen.get_num_pixels()[0]; ++px_x)
+    {
+      std::vector<util::vector2> current_root_list;
+      
+      for(std::size_t px_y = 0; px_y < _screen.get_num_pixels()[1]; ++px_y)
+      {
+        pixel_coordinates = _screen.get_pixel_coordinates({px_x, px_y});
+        
+        if(current_root_list.empty())
+          _backend_finder->get_images(pixel_coordinates, current_root_list);
+        else
+        {
+          std::vector<util::vector2>& new_root_list = _roots_at_pixel[pixel_coordinates];
+          new_root_list.clear();
+          
+          // Propagate roots
+          for(const util::vector2& root : current_root_list)
+          {
+            numeric::newton<util::scalar, 2> newton2d(root, 
+                                                      _differential_delta, 
+                                                      ray_equation);
+            
+            newton2d.run(this->_accuracy, 50);
+            
+            if(newton2d.was_successful())
+              new_root_list.push_back(newton2d.get_position());
+          }
+          
+          if(caustic_crossing(current_root_list, new_root_list))
+            _backend_finder->get_images(pixel_coordinates, new_root_list);
+
+          current_root_list = new_root_list;
+        }
+        
+      }
+    }
   }
   
+  virtual ~root_tracing(){}
+  
   virtual void get_images(const util::vector2& source_plane_pos,
-                          std::vector<util::vector2>& out) const
+                          std::vector<util::vector2>& out)
   {
-    
+    out = _roots_at_pixel[source_plane_pos];
   }
+  
+private:
+  inline bool caustic_crossing(const std::vector<util::vector2>& root_list0,
+                        const std::vector<util::vector2>& root_list1) const
+  {
+    util::scalar mag0 = get_magnification(root_list0);
+    util::scalar mag1 = get_magnification(root_list1);
+
+    return std::abs(mag0 - mag1) > 25.0;
+  }
+  
+  inline util::scalar get_magnification(const std::vector<util::vector2>& root_list) const
+  {
+    util::scalar mag = 0.0;
+    
+    // magnification by lensing jacobian does not care about the pixel position,
+    // hence we just assume 0.0, 0.0
+    util::vector2 pixel_position = {0.0, 0.0};
+    
+    for(const util::vector2& root : root_list)
+      mag += _mag_calculator.get_magnification(*(this->_system), pixel_position, root);
+      
+    return mag;
+  }
+  
+  util::scalar _differential_delta;
+  
+  magnification::by_lensing_jacobian _mag_calculator;
+  
+  screen_descriptor _screen;
+  util::grid2d<util::scalar, std::vector<util::vector2>> _roots_at_pixel;
+  image_finder<SystemType>* _backend_finder;
 };
 
 

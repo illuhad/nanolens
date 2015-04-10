@@ -43,15 +43,19 @@ public:
   
   grid(const scalar_array_type& min_extent,
        const scalar_array_type& max_extent,
-       size_t num_buckets_per_dim)
-  : _data(std::vector<size_t>(Dimension, num_buckets_per_dim + 2)),
-    _min(min_extent), _max(max_extent),
-    _num_buckets(num_buckets_per_dim)
+       const std::array<std::size_t, Dimension> num_buckets)
+  : _min(min_extent), _max(max_extent),
+    _num_buckets(num_buckets)
   {
+    std::vector<std::size_t> extended_num_buckets;
+    for(std::size_t i = 0; i < Dimension; ++i)
+      extended_num_buckets.push_back(num_buckets[i] + 2);
+    
+    _data = util::multi_array<ValueType>(extended_num_buckets);
     for(std::size_t i = 0; i < Dimension; ++i)
     {
       assert(_max[i] > _min[i]);
-      _stepwidths[i] = (_max[i] - _min[i]) / num_buckets_per_dim;
+      _stepwidths[i] = (_max[i] - _min[i]) / _num_buckets[i];
     }
   }
   
@@ -176,14 +180,14 @@ private:
       else if(point[i] >= _max[i])
         result[i] = _data.get_extent_of_dimension(i) - 1;
       else
-        result[i] = static_cast<size_t>((point[i] - _min[i]) / _stepwidths[i]) + 1;
+        result[i] = static_cast<std::size_t>((point[i] - _min[i]) / _stepwidths[i]) + 1;
     }
     
     return result;
   }
   
   util::multi_array<ValueType> _data;
-  FieldType _num_buckets;
+  std::array<std::size_t, Dimension> _num_buckets;
   
   scalar_array_type _min;
   scalar_array_type _max;
