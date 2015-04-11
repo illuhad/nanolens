@@ -55,12 +55,14 @@ public:
     _size(physical_size),
     _position(screen_position),
     _accuracy(numerical_accuracy),
-    _scaled_screen_size(physical_size)
+    _scaled_screen_size(physical_size),
+    _my_rank(0)
   {}
 
   template<class Function>
   void run(system& sys, const boost::mpi::communicator& comm, Function status_handler)
   {
+    _my_rank = comm.rank();
 
     init_screen(sys);
 
@@ -172,17 +174,19 @@ public:
   /// works only on the master process
   void save_pixels_as_raw(const std::string& filename) const
   {
-    
-    std::ofstream file(filename.c_str(), 
-                         std::ofstream::out|std::ofstream::binary|std::ofstream::trunc);
-    
-    if(_pixels.size() != 0)
+    if(_my_rank == master_rank)
     {
+      std::ofstream file(filename.c_str(), 
+                           std::ofstream::out|std::ofstream::binary|std::ofstream::trunc);
 
-      if(file.is_open())
+      if(_pixels.size() != 0)
       {
-        file.write(reinterpret_cast<const char*>(_pixels.begin()), 
-                   sizeof(util::scalar) * _pixels.size());
+
+        if(file.is_open())
+        {
+          file.write(reinterpret_cast<const char*>(_pixels.begin()), 
+                     sizeof(util::scalar) * _pixels.size());
+        }
       }
     }
   }
@@ -190,33 +194,38 @@ public:
   // works only on the master process
   void save_pixels_as_fits(const std::string& filename) const
   {
-    fitsfile* file;
-    int status = 0;
-    
-    long naxes [] = {static_cast<long>(_num_pixels[0]), 
-                     static_cast<long>(_num_pixels[1])};
-    
-    // cfitsio will only overwrite files when their names are preceded by an
-    // exclamation mark...
-    std::string fitsio_filename = "!"+filename;
-    
-    if (!fits_create_file(&file, fitsio_filename.c_str(), &status))
+    if(_my_rank == master_rank)
     {
-      if (!fits_create_img(file, DOUBLE_IMG, 2, naxes, &status))
-      {
-        long fpixel[3] = {1, 1};
-        double current_value = 0.0;
+      fitsfile* file;
+      int status = 0;
 
-        for (fpixel[0] = 1; fpixel[0] <= static_cast<long>(_num_pixels[0]); ++fpixel[0])
+      long naxes [] = {static_cast<long>(_num_pixels[0]), 
+                       static_cast<long>(_num_pixels[1])};
+
+      // cfitsio will only overwrite files when their names are preceded by an
+      // exclamation mark...
+      std::string fitsio_filename = "!"+filename;
+
+      if (!fits_create_file(&file, fitsio_filename.c_str(), &status))
+      {
+        if (!fits_create_img(file, DOUBLE_IMG, 2, naxes, &status))
+        {
+          long fpixel[3] = {1, 1};
+          
+          std::vector<util::scalar> row(_num_pixels[0], 0.0);
+          
           for  (fpixel[1] = 1; fpixel[1] <= static_cast<long>(_num_pixels[1]); ++fpixel[1])
           {
-            std::size_t px_index [] = {static_cast<std::size_t>(fpixel[0] - 1), 
-                                       static_cast<std::size_t>(fpixel[1] - 1)};
-            current_value = _pixels[px_index];
-            fits_write_pix(file, TDOUBLE, fpixel, 1, &current_value, &status);
+            for(std::size_t x = 0; x < _num_pixels[0]; ++x)
+            {
+              std::size_t px_index [] = {x, static_cast<std::size_t>(fpixel[1]) - 1};
+              row[x] = _pixels[px_index];
+            }
+            fits_write_pix(file, TDOUBLE, fpixel, _num_pixels[0], row.data(), &status);
           }
-        
-        fits_close_file(file, &status);
+
+          fits_close_file(file, &status);
+        }
       }
     }
   }
@@ -237,6 +246,7 @@ private:
   }
   
 
+  int _my_rank;
   std::shared_ptr<screen_descriptor> _screen;
   std::array<std::size_t, 2> _num_pixels;
   util::scalar _accuracy;
