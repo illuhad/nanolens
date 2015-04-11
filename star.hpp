@@ -20,20 +20,29 @@
 #ifndef STAR_HPP
 #define	STAR_HPP
 
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/array.hpp>
+#include <boost/mpi.hpp>
+
 namespace nanolens {
 
 class star
 {
 public:
+  star() = default;
+  
   star(const util::vector2& pos, util::scalar mass)
   : _mass(mass), _position(pos), _deflection_constant(0.)
   {
-    _deflection_constant = 4 * util::G * _mass / util::square(util::c);
+    init_deflection_constant();
   }
 
   inline void calculate_deflection_angle(const util::vector2& position,
                                         util::vector2& result) const
-  { 
+  {
+    //TODO Think about a solution for this case
+    assert(position != _position);
+    
     result = this->_position;
     util::sub(result, position);
 
@@ -50,11 +59,37 @@ public:
 
   util::scalar get_mass() const
   { return _mass; }
+  
 private:
   util::vector2 _position;
   util::scalar _mass;
   util::scalar _deflection_constant;
+  
+  inline void init_deflection_constant() 
+  {
+    _deflection_constant = 4 * util::G * _mass / util::square(util::c);
+  }
+  
+  friend class boost::serialization::access;
+  
 
+  template<class Archive>
+  void save(Archive& ar, const unsigned int version) const
+  {
+    ar & _position;
+    ar & _mass;
+  }
+
+  template<class Archive>
+  void load(Archive& ar, const unsigned int version)
+  {
+    ar & _position;
+    ar & _mass;
+
+    init_deflection_constant();
+    
+  }
+  BOOST_SERIALIZATION_SPLIT_MEMBER()
 };
 
 }

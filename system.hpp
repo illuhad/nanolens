@@ -22,8 +22,6 @@
 
 #include <vector>
 #include <memory>
-#include <fstream>
-#include <random>
 #include <boost/mpi.hpp>
 #include "util.hpp"
 #include "ray.hpp"
@@ -39,54 +37,33 @@ public:
 
   explicit system(const std::vector<star>& deflectors,
                   const std::array<util::scalar, num_planes>& plane_distances = {1.0, 1.0})
-  : _deflector(new lens_plane(deflectors, plane_distances[1])),
-    _observer(new observer_plane({0.0, 0.0}, plane_distances[0]))
-  {
-    init();
-  }
-
-
-  explicit system(const std::string& star_file_,
-                  const std::array<util::scalar, num_planes>& plane_distances = {1.0, 1.0})
-  : _observer(new observer_plane({0.0, 0.0}, plane_distances[1]))
+  : _observer(new observer_plane({0.0, 0.0}, plane_distances[0]))
   {
     init_einstein_radius(plane_distances[1],
-                         plane_distances[0],
-                         plane_distances[0] + plane_distances[1]);
-
+                     plane_distances[0],
+                     plane_distances[0] + plane_distances[1]);  
+      
+    
     util::scalar lens_plane_einstein_radius = get_einstein_radius() 
-            * _observer->distance_to_previous_plane();
-
-    std::ifstream input_file;
-
-    input_file.open(star_file_.c_str());
-
-    std::vector<star> stars;
-
-    if(input_file.is_open())
+        * _observer->distance_to_previous_plane();
+    
+    std::vector<star> scaled_deflectors = deflectors;
+    
+    for(star& s : scaled_deflectors)
     {
-      while(input_file.good())
-      {
-        util::vector2 position = {0.0, 0.0};
-        util::scalar mass = 0.0;
-
-        input_file >> position[0];
-        input_file >> position[1];
-        input_file >> mass;
-
-        util::scale(position, lens_plane_einstein_radius);
-
-        star new_star(position, mass);
-        stars.push_back(new_star);
-      }
+      util::vector2 new_pos = s.get_position();
+      
+      util::scale(new_pos, lens_plane_einstein_radius);
+      
+      s = star(new_pos, s.get_mass());
     }
-
-    _deflector = std::shared_ptr<lens_plane>(new lens_plane(stars, plane_distances[0]));
+    
+    _deflector = std::shared_ptr<lens_plane>(new lens_plane(scaled_deflectors, plane_distances[1]));
     
     init();
-
-
+    
   }
+
 
   inline const observer_plane& get_observer() const
   { return *_observer; }

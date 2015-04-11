@@ -22,6 +22,7 @@
 #include "render_engine.hpp"
 #include "timer.hpp"
 #include "system.hpp"
+#include "star_generator.hpp"
 
 
 int main(int argc, char** argv) 
@@ -34,18 +35,61 @@ int main(int argc, char** argv)
   master_cout << "nanolens Copyright (C) 2015 Aksel Alpay\n"
     "This program comes with ABSOLUTELY NO WARRANTY; It is free software,\n"
     "and you are welcome to redistribute it under the conditions of the\n"
-    "GNU General Public License v3.\n\n";
+    "GNU General Public License v3.\n\n"
+"                                                                           \n" 
+"                                                                           \n"    
+"                             ````                                          \n"    
+"                             `````                                         \n"    
+"                             ``..``                                        \n"    
+"                              ``/.`                                        \n"    
+"                               `.o`                                        \n"    
+"                                `hs:`                                      \n"    
+"                                -o::+:.                                    \n"    
+"                                +-....-/:-.`               ````````        \n"    
+"                               /-.........-:::----....--::-:-.```          \n"    
+"                              /-..`````````.......--:+o/.`                 \n"    
+"                            `/-..`````````````.....::.                     \n"    
+"                           ::..```````````````...::`                       \n"    
+"                         -/-..```````````````..-/`                         \n"    
+"                      `:/-....``````````````..:-                           \n"    
+"                 ``./oo/::--......````````.../.                            \n"    
+"           ````.----.`````...---::-.........+.                             \n"    
+"         ````````                 .-:/-...-/:                              \n"    
+"                                      .:+:/o                               \n"    
+"                                        `/y+`                              \n"    
+"                                         `.o``                             \n"    
+"                                         ``:-``                            \n"    
+"                                          ``.```                           \n"    
+"                                          ``````                           \n"    
+"                                            ```                            \n";
+                                                                                
+                                                                                
+
   
-  master_cout << "nanolens version 2.0e-22 launching..." << std::endl;
+  master_cout << "nanolens version 2.0e-21 launching..." << std::endl;
   master_cout << "Using " << world.size() << " process(es).\n";
   
+  std::vector<nanolens::star> stars;
+  
+  master_cout << "Preparing system...\n";
+  
+  nanolens::star_generator star_gen(world);
+  star_gen.from_file("nanolens_star_log.dat", stars);
 
+  // Create 1500 random stars
+//  star_gen.from_random_distribution(1500, stars,
+//                                    std::normal_distribution<>(0.0, 50.0),
+//                                    std::normal_distribution<>(0.0, 50.0),
+//                                    std::normal_distribution<>(1.0, 0.2));
+  
+  star_gen.save_generated_stars("nanolens_star_log.dat");
 
-  nanolens::system lensing_system("stars.dat", {1.0, 1.0});
+  nanolens::system lensing_system(stars, {1.0, 1.0});
 
   std::array<std::size_t, 2> npixels = {1024, 1024};
-  nanolens::util::vector2 physical_size = {10.0, 10.0};
-  nanolens::util::vector2 screen_position = {0.37, 0.63};
+  nanolens::util::vector2 physical_size = {1.0, 1.0};
+  //nanolens::util::vector2 screen_position = {0.37, 0.63};
+  nanolens::util::vector2 screen_position = {0.0, 0.0};
   
   //nanolens::util::vector2 physical_size = {1.6, 1.6};
   //nanolens::util::vector2 screen_position = {0.0, 0.0};

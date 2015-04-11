@@ -82,7 +82,7 @@ public:
     
  */
     std::shared_ptr<image_finder<system>> img_finder(
-      new image_finders::inverse_ray_shooting<system>(&sys, status_handler, *_screen, {0.0,0.0}, {8.0, 8.0}, {10000, 10000}, comm));
+      new image_finders::inverse_ray_shooting<system>(&sys, status_handler, *_screen, {0.0,0.0}, {20.0, 20.0}, {20000, 20000}, comm));
       
     pixel_processor<magnification::by_compact_image_count> pixel_evaluator(2.0 * _accuracy);
     

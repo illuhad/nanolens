@@ -21,6 +21,7 @@
       <itemPath>scheduler.hpp</itemPath>
       <itemPath>screen.hpp</itemPath>
       <itemPath>star.hpp</itemPath>
+      <itemPath>star_generator.hpp</itemPath>
       <itemPath>status.hpp</itemPath>
       <itemPath>system.hpp</itemPath>
       <itemPath>timer.hpp</itemPath>
@@ -106,6 +107,8 @@
       </item>
       <item path="star.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="star_generator.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="status.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="system.hpp" ex="false" tool="3" flavor2="0">
@@ -181,6 +184,8 @@
       <item path="screen.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="star.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="star_generator.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="status.hpp" ex="false" tool="3" flavor2="0">
       </item>

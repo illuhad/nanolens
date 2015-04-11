@@ -55,7 +55,8 @@ public:
     for(std::size_t i = 0; i < Dimension; ++i)
     {
       assert(_max[i] > _min[i]);
-      _stepwidths[i] = (_max[i] - _min[i]) / _num_buckets[i];
+      _stepwidths[i] = (_max[i] - _min[i]) / static_cast<FieldType>(_num_buckets[i]);
+      _half_stepwidth[i] = 0.5 * _stepwidths[i];
     }
   }
   
@@ -70,7 +71,7 @@ public:
   }
   
   ValueType& operator[](const index_type& position)
-  {
+  {    
     return _data[position.data()];
   }
   
@@ -175,9 +176,13 @@ public:
     
     return true;
   }
-private:
   
+  inline std::size_t get_total_num_buckets(std::size_t dimension) const
+  {
+    return _data.get_extent_of_dimension(dimension);
+  }
   
+    
   index_type get_index(const scalar_array_type& point) const
   {
     index_type result;
@@ -195,12 +200,66 @@ private:
     return result;
   }
   
+  index_type get_interior_start_bucket() const
+  {
+    index_type result;
+    for(std::size_t i = 0; i < Dimension; ++i)
+      result[i] = 1;
+    
+    return result;
+  }
+  
+  // one bucket beyond the final interior bucket
+  index_type get_interior_end_bucket() const
+  {
+    index_type result;
+    
+    for(std::size_t i = 0; i < Dimension; ++i)
+      result[i] = _data.get_extent_of_dimension(i) - 1;
+    
+    return result;
+  }
+  
+  scalar_array_type get_min_position_of_bucket(const index_type& p) const
+  {
+    std::array<int, Dimension> exterior_layer_corrected_position;
+    for(std::size_t i = 0; i < Dimension; ++i)
+      exterior_layer_corrected_position[i] = static_cast<int>(p[i]);
+    
+    for(std::size_t i = 0; i < Dimension; ++i)
+      --exterior_layer_corrected_position[i];
+    
+    scalar_array_type position;
+    
+    for(std::size_t i = 0; i < Dimension; ++i)
+    {
+      position[i] = _min[i] + exterior_layer_corrected_position[i] * _stepwidths[i];
+    }
+    
+    return position;
+  }
+  
+  scalar_array_type get_central_position_of_bucket(const index_type& p) const
+  {
+    scalar_array_type pos = get_min_position_of_bucket(p);
+    util::add(pos, _half_stepwidth);
+    
+    return pos;
+  }
+  
+  scalar_array_type get_bucket_size() const
+  {
+    return _stepwidths;
+  }
+private:
+  
   util::multi_array<ValueType> _data;
   std::array<std::size_t, Dimension> _num_buckets;
   
   scalar_array_type _min;
   scalar_array_type _max;
   scalar_array_type _stepwidths;
+  scalar_array_type _half_stepwidth;
   
 };
 

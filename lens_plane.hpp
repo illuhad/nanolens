@@ -25,10 +25,11 @@
 #include "util.hpp"
 #include "plane.hpp"
 #include "star.hpp"
+#include "nested_interpolation_grid.hpp"
 
 namespace nanolens
 {
-  
+
   class lens_plane : public plane
   {
   public:
@@ -43,7 +44,8 @@ namespace nanolens
     
     explicit lens_plane(const std::vector<star>& deflectors,
                         util::scalar distance_to_prev)
-    : _deflectors(deflectors), plane(distance_to_prev)
+    : _deflectors(deflectors), plane(distance_to_prev), 
+    _grid(deflectors, 3, {-50.0, -50.0}, {50.0, 50.0}, {2000, 2000}, {2, 2})
     {
       _distance_to_nearest_star.reserve(_deflectors.size());
       
@@ -72,14 +74,15 @@ namespace nanolens
     
     void get_deflection_angle(const util::vector2& position, util::vector2& result) const
     {
-      util::vector2 deflection;
-      result = {0.0, 0.0};
-      
-      for(std::size_t i = 0; i < _deflectors.size(); ++i)
-      {
-        _deflectors[i].calculate_deflection_angle(position, deflection);
-        util::add(result, deflection);
-      }
+//      util::vector2 deflection;
+//      result = {0.0, 0.0};
+//      
+//      for(std::size_t i = 0; i < _deflectors.size(); ++i)
+//      {
+//        _deflectors[i].calculate_deflection_angle(position, deflection);
+//        util::add(result, deflection);
+//      }
+      result = _grid.get_deflection(position);
     }
     
     // Einstein radius for object of mass 1
@@ -251,6 +254,8 @@ namespace nanolens
     std::vector<util::scalar> _distance_to_nearest_star;
     
     util::scalar _min_distance;
+    
+    nested_interpolation_grid _grid;
   };
 }
 

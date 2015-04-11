@@ -227,17 +227,8 @@ public:
         util::vector2 current_position = {sampling_center[0], 
                                           min_sampling_corner[1] + i * step_size};
         
-        util::vector2 source_plane_pos = this->_system->ray_function(current_position);
         
-        if(only_count_hits)
-        {
-          if(test_grid[source_plane_pos].size() == 0)
-            test_grid[source_plane_pos].push_back({1.0, 0.0});
-          else
-            test_grid[source_plane_pos][0][0] += 1.0;
-        }
-        else
-          test_grid[source_plane_pos].push_back(current_position);
+        process_ray(current_position, test_grid, only_count_hits);
       }
     };
     
@@ -261,17 +252,7 @@ public:
           util::vector2 current_position = {min_sampling_corner[0] + x_idx * stepwidth[0],
                                             min_sampling_corner[1] + y_idx * stepwidth[1]};
           
-          util::vector2 source_plane_pos = this->_system->ray_function(current_position);
-        
-          if(only_count_hits)
-          {
-            if(_roots_at_pixel[source_plane_pos].size() == 0)
-              _roots_at_pixel[source_plane_pos].push_back({1.0, 0.0});
-            else
-              _roots_at_pixel[source_plane_pos][0][0] += 1.0;
-          }
-          else
-            _roots_at_pixel[source_plane_pos].push_back(current_position);
+          process_ray(current_position, _roots_at_pixel, only_count_hits);
 
         }
         
@@ -282,6 +263,9 @@ public:
     
     this->_handler(status_info("Distributing results among processes"));
     
+    // Retrieve results from other processes, combine root lists, or add
+    // the first entries if we are only interested in counting the number
+    // of hits
     _roots_at_pixel.allcombine_parallel_grid(comm, [only_count_hits](std::vector<util::vector2>& local,
                                                       const std::vector<util::vector2>& received)
     {
@@ -304,7 +288,7 @@ public:
     
   }
   
-    virtual void get_images(const util::vector2& source_plane_pos,
+  virtual void get_images(const util::vector2& source_plane_pos,
                           std::vector<util::vector2>& out)
   {
       out = _roots_at_pixel[source_plane_pos];
@@ -313,6 +297,26 @@ public:
   virtual ~inverse_ray_shooting(){}
   
 private:
+  inline void process_ray(const util::vector2& lens_plane_pos,
+                          util::grid2d<util::scalar, std::vector<util::vector2>>& root_grid,
+                          bool only_count_hits)
+  {
+    util::vector2 source_plane_pos = this->_system->ray_function(lens_plane_pos);
+
+    if(root_grid.contains_point(source_plane_pos))
+    {
+      if(only_count_hits)
+      {
+        if(root_grid[source_plane_pos].size() == 0)
+          root_grid[source_plane_pos].push_back({1.0, 0.0});
+        else
+          root_grid[source_plane_pos][0][0] += 1.0;
+      }
+      else
+        root_grid[source_plane_pos].push_back(lens_plane_pos);
+    }
+  }
+  
   util::grid2d<util::scalar, std::vector<util::vector2>> _roots_at_pixel;
 };
 
