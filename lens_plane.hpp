@@ -45,7 +45,7 @@ namespace nanolens
     explicit lens_plane(const std::vector<star>& deflectors,
                         util::scalar distance_to_prev)
     : _deflectors(deflectors), plane(distance_to_prev), 
-    _grid(deflectors, 3, {-50.0, -50.0}, {50.0, 50.0}, {2000, 2000}, {2, 2})
+    _grid(deflectors, 3, {-50.0, -50.0}, {50.0, 50.0}, {100, 100}, {2, 2})
     {
       _distance_to_nearest_star.reserve(_deflectors.size());
       

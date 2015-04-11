@@ -52,7 +52,7 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=-lboost_mpi -lboost_serialization
+LDLIBSOPTIONS=-lboost_mpi -lboost_serialization -lcfitsio
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}

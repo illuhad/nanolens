@@ -87,7 +87,7 @@ int main(int argc, char** argv)
   nanolens::system lensing_system(stars, {1.0, 1.0});
 
   std::array<std::size_t, 2> npixels = {1024, 1024};
-  nanolens::util::vector2 physical_size = {1.0, 1.0};
+  nanolens::util::vector2 physical_size = {25.0, 25.0};
   //nanolens::util::vector2 screen_position = {0.37, 0.63};
   nanolens::util::vector2 screen_position = {0.0, 0.0};
   
@@ -163,7 +163,7 @@ int main(int argc, char** argv)
   master_cout << "Saving output..." << std::endl;
 
   if(world.rank() == 0)
-    engine.save_pixels("output.map");
+    engine.save_pixels_as_fits("output.fits");
 
   return 0;
 }

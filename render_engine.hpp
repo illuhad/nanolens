@@ -27,6 +27,7 @@
 #include <boost/mpi.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/math/constants/constants.hpp>
+#include <fitsio.h>
 #include "util.hpp"
 #include "ray.hpp"
 #include "lens_plane.hpp"
@@ -82,7 +83,7 @@ public:
     
  */
     std::shared_ptr<image_finder<system>> img_finder(
-      new image_finders::inverse_ray_shooting<system>(&sys, status_handler, *_screen, {0.0,0.0}, {20.0, 20.0}, {20000, 20000}, comm));
+      new image_finders::inverse_ray_shooting<system>(&sys, status_handler, *_screen, {0.0,0.0}, {100.0, 100.0}, {20000, 20000}, comm));
       
     pixel_processor<magnification::by_compact_image_count> pixel_evaluator(2.0 * _accuracy);
     
@@ -169,7 +170,7 @@ public:
 
 
   /// works only on the master process
-  void save_pixels(const std::string& filename)
+  void save_pixels_as_raw(const std::string& filename) const
   {
     
     std::ofstream file(filename.c_str(), 
@@ -180,8 +181,42 @@ public:
 
       if(file.is_open())
       {
-        file.write(reinterpret_cast<char*>(_pixels.begin()), 
+        file.write(reinterpret_cast<const char*>(_pixels.begin()), 
                    sizeof(util::scalar) * _pixels.size());
+      }
+    }
+  }
+  
+  // works only on the master process
+  void save_pixels_as_fits(const std::string& filename) const
+  {
+    fitsfile* file;
+    int status = 0;
+    
+    long naxes [] = {static_cast<long>(_num_pixels[0]), 
+                     static_cast<long>(_num_pixels[1])};
+    
+    // cfitsio will only overwrite files when their names are preceded by an
+    // exclamation mark...
+    std::string fitsio_filename = "!"+filename;
+    
+    if (!fits_create_file(&file, fitsio_filename.c_str(), &status))
+    {
+      if (!fits_create_img(file, DOUBLE_IMG, 2, naxes, &status))
+      {
+        long fpixel[3] = {1, 1};
+        double current_value = 0.0;
+
+        for (fpixel[0] = 1; fpixel[0] <= static_cast<long>(_num_pixels[0]); ++fpixel[0])
+          for  (fpixel[1] = 1; fpixel[1] <= static_cast<long>(_num_pixels[1]); ++fpixel[1])
+          {
+            std::size_t px_index [] = {static_cast<std::size_t>(fpixel[0] - 1), 
+                                       static_cast<std::size_t>(fpixel[1] - 1)};
+            current_value = _pixels[px_index];
+            fits_write_pix(file, TDOUBLE, fpixel, 1, &current_value, &status);
+          }
+        
+        fits_close_file(file, &status);
       }
     }
   }

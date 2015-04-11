@@ -146,6 +146,7 @@
           <linkerLibItems>
             <linkerOptionItem>-lboost_mpi</linkerOptionItem>
             <linkerOptionItem>-lboost_serialization</linkerOptionItem>
+            <linkerOptionItem>-lcfitsio</linkerOptionItem>
           </linkerLibItems>
         </linkerTool>
       </compileType>
