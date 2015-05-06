@@ -23,6 +23,7 @@
 #include "timer.hpp"
 #include "system.hpp"
 #include "star_generator.hpp"
+#include "input.hpp"
 
 
 int main(int argc, char** argv) 
@@ -66,30 +67,54 @@ int main(int argc, char** argv)
                                                                                 
 
   
-  master_cout << "nanolens version 2.0e-21 launching..." << std::endl;
+  master_cout << "nanolens version 2.0e-20 launching..." << std::endl;
   master_cout << "Using " << world.size() << " process(es).\n";
   
   std::vector<nanolens::star> stars;
   
   master_cout << "Preparing system...\n";
   
+  nanolens::configuration config(world, 0);
+  config.load_from_file("nanolens.xml");
+  
+  // Generate stars
   nanolens::star_generator star_gen(world);
-  star_gen.from_file("nanolens_star_log.dat", stars);
-
-  // Create 1500 random stars
-//  star_gen.from_random_distribution(1500, stars,
-//                                    std::normal_distribution<>(0.0, 50.0),
-//                                    std::normal_distribution<>(0.0, 50.0),
-//                                    std::normal_distribution<>(1.0, 0.2));
+  
+  for(const std::string& filename : config.get_star_files())
+  {
+    master_cout << "Loading stars from file: " << filename << std::endl;
+    std::vector<nanolens::star> generated_stars;
+    star_gen.from_file(filename, stars); 
+    
+    for(const nanolens::star& s : generated_stars)
+      stars.push_back(s);
+  }
+  
+  for(const nanolens::configuration::random_star_generator_descriptor& descr : 
+      config.get_random_star_generators())
+  {
+    master_cout << "Generating " << descr.num_stars << " random stars...\n";
+    
+    std::vector<nanolens::star> generated_stars;
+    
+    star_gen.from_random_distribution(descr.num_stars,
+                                      generated_stars,
+                                      descr.x_distribution,
+                                      descr.y_distribution,
+                                      descr.mass_distribution);
+    
+    for(const nanolens::star& s : generated_stars)
+      stars.push_back(s);
+  }
   
   star_gen.save_generated_stars("nanolens_star_log.dat");
 
-  nanolens::system lensing_system(stars, {1.0, 1.0});
+  nanolens::system lensing_system(stars, {config.get_dL(), config.get_dLS()});
 
-  std::array<std::size_t, 2> npixels = {1024, 1024};
-  nanolens::util::vector2 physical_size = {25.0, 25.0};
+  std::array<std::size_t, 2> npixels = config.get_resolution();
+  nanolens::util::vector2 physical_size = config.get_physical_screen_size();
   //nanolens::util::vector2 screen_position = {0.37, 0.63};
-  nanolens::util::vector2 screen_position = {0.0, 0.0};
+  nanolens::util::vector2 screen_position = config.get_screen_pos();
   
   //nanolens::util::vector2 physical_size = {1.6, 1.6};
   //nanolens::util::vector2 screen_position = {0.0, 0.0};
@@ -162,8 +187,7 @@ int main(int argc, char** argv)
   
   master_cout << "Saving output..." << std::endl;
 
-  if(world.rank() == 0)
-    engine.save_pixels_as_fits("output.fits");
+  engine.save_pixels_as_fits("output.fits");
 
   return 0;
 }

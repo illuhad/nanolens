@@ -27,7 +27,7 @@
 namespace nanolens{
 namespace util{
 
-template<typename FieldType, class ValueType, size_t Dimension>
+template<typename FieldType, class ValueType, size_t Dimension, bool EdgeLayer = true>
 class grid
 {
 public:
@@ -48,8 +48,12 @@ public:
     _num_buckets(num_buckets)
   {
     std::vector<std::size_t> extended_num_buckets;
-    for(std::size_t i = 0; i < Dimension; ++i)
-      extended_num_buckets.push_back(num_buckets[i] + 2);
+    if(EdgeLayer)
+      for(std::size_t i = 0; i < Dimension; ++i)
+        extended_num_buckets.push_back(num_buckets[i] + 2);
+    else
+      for(std::size_t i = 0; i < Dimension; ++i)
+        extended_num_buckets.push_back(num_buckets[i]);
     
     _data = util::multi_array<ValueType>(extended_num_buckets);
     for(std::size_t i = 0; i < Dimension; ++i)
@@ -187,14 +191,24 @@ public:
   {
     index_type result;
     
-    for(size_t i = 0; i < Dimension; ++i)
+    if(EdgeLayer)
     {
-      if(point[i] < _min[i])
-        result[i] = 0;
-      else if(point[i] >= _max[i])
-        result[i] = _data.get_extent_of_dimension(i) - 1;
-      else
-        result[i] = static_cast<std::size_t>((point[i] - _min[i]) / _stepwidths[i]) + 1;
+      for(size_t i = 0; i < Dimension; ++i)
+      {
+        if(point[i] < _min[i])
+          result[i] = 0;
+        else if(point[i] >= _max[i])
+          result[i] = _data.get_extent_of_dimension(i) - 1;
+        else
+          result[i] = static_cast<std::size_t>((point[i] - _min[i]) / _stepwidths[i]) + 1;
+      }
+    }
+    else
+    {
+      for(size_t i = 0; i < Dimension; ++i)
+      {
+        result[i] = static_cast<std::size_t>((point[i] - _min[i]) / _stepwidths[i]);
+      }
     }
     
     return result;
@@ -203,8 +217,11 @@ public:
   index_type get_interior_start_bucket() const
   {
     index_type result;
-    for(std::size_t i = 0; i < Dimension; ++i)
-      result[i] = 1;
+    std::fill(result.begin(), result.end(), 0);
+    
+    if(EdgeLayer)
+      for(std::size_t i = 0; i < Dimension; ++i)
+        result[i] = 1;
     
     return result;
   }
@@ -215,7 +232,10 @@ public:
     index_type result;
     
     for(std::size_t i = 0; i < Dimension; ++i)
-      result[i] = _data.get_extent_of_dimension(i) - 1;
+      if(EdgeLayer)
+        result[i] = _data.get_extent_of_dimension(i) - 1;
+      else
+        result[i] = _data.get_extent_of_dimension(i);
     
     return result;
   }
@@ -226,8 +246,9 @@ public:
     for(std::size_t i = 0; i < Dimension; ++i)
       exterior_layer_corrected_position[i] = static_cast<int>(p[i]);
     
-    for(std::size_t i = 0; i < Dimension; ++i)
-      --exterior_layer_corrected_position[i];
+    if(EdgeLayer)
+      for(std::size_t i = 0; i < Dimension; ++i)
+        --exterior_layer_corrected_position[i];
     
     scalar_array_type position;
     

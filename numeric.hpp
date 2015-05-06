@@ -239,11 +239,103 @@ private:
   int _rank;
 };
 
+template<class DomainScalarType, std::size_t Domain_dim,
+  class CodomainScalarType, std::size_t Codomain_dim>
+class derivative
+{
+public:
+  typedef util::vector<DomainScalarType, Domain_dim> domain_vector;
+  typedef util::vector<CodomainScalarType, Codomain_dim> codomain_vector;
+  typedef std::function<codomain_vector (const domain_vector&)> function_type;
+  
+  derivative(const function_type& f, DomainScalarType accuracy)
+  : _f(f), _accuracy(accuracy), _half_accuracy(0.5 * accuracy)
+  {}
+  
+  // @param direction A normalized vector indicating the direction of the derivative
+  codomain_vector operator()(const domain_vector& direction, const domain_vector& pos) const
+  {
+    domain_vector p0 = pos;
+    domain_vector p1 = pos;
+    
+    for(std::size_t i = 0; i < Domain_dim; ++i)
+    {
+      p0[i] -= _half_accuracy * direction[i];
+      p1[i] += _half_accuracy * direction[i];
+    }
+    
+    codomain_vector v0 = _f(p0);
+    codomain_vector v1 = _f(p1);
+    
+    for(std::size_t i = 0; i < Codomain_dim; ++i)
+    {
+      v1[i] -= v0[i];
+      v1[i] /= _accuracy;
+    }
+    
+    return v1;
+  }
+  
+protected:
+  function_type _f;
+  const DomainScalarType _accuracy;
+  const DomainScalarType _half_accuracy;
+};
+
+// derivative in one coordinate direction
+template<class DomainScalarType, std::size_t Domain_dim,
+  class CodomainScalarType, std::size_t Codomain_dim, std::size_t I>
+class d_dx_i : public derivative<DomainScalarType, Domain_dim, CodomainScalarType, Codomain_dim>
+{
+  static_assert(I < Domain_dim, "Dimension too small");
+public:
+  typedef util::vector<DomainScalarType, Domain_dim> domain_vector;
+  typedef util::vector<CodomainScalarType, Codomain_dim> codomain_vector;
+  typedef std::function<codomain_vector (const domain_vector&)> function_type;
+  
+  d_dx_i(const function_type& f, DomainScalarType accuracy)
+  : derivative<DomainScalarType, Domain_dim, CodomainScalarType, Codomain_dim>(f, accuracy)
+  {
+    for(std::size_t i = 0; i < Domain_dim; ++i)
+      _direction[i] = 0.;
+    _direction[I] = 1.;
+  }
+  
+  codomain_vector operator()(const domain_vector& pos) const
+  {
+    return derivative<DomainScalarType, 
+                      Domain_dim, 
+                      CodomainScalarType,
+                      Codomain_dim>::operator ()(_direction, pos);
+  }
+  
+private:
+  domain_vector _direction;
+};
+
+template<class DomainScalarType, std::size_t Domain_dim,
+  class CodomainScalarType, std::size_t Codomain_dim>
+using d_dx = d_dx_i<DomainScalarType, Domain_dim, CodomainScalarType, Codomain_dim, 0>;
+
+template<class DomainScalarType, std::size_t Domain_dim,
+  class CodomainScalarType, std::size_t Codomain_dim>
+using d_dy = d_dx_i<DomainScalarType, Domain_dim, CodomainScalarType, Codomain_dim, 1>;
+
+template<class DomainScalarType, std::size_t Domain_dim,
+  class CodomainScalarType, std::size_t Codomain_dim>
+using d_dz = d_dx_i<DomainScalarType, Domain_dim, CodomainScalarType, Codomain_dim, 2>;
+
+template<typename T>
+constexpr T kronecker_delta(T a, T b)
+{
+  return (a == b) ? 1. : 0.;
+}
+
 template<class ScalarType, std::size_t N>
 class jacobian
 {
 public:
-  typedef std::array<ScalarType, N> Rn_vector;
+  typedef util::vector<ScalarType, N> Rn_vector;
   typedef std::function<Rn_vector (const Rn_vector&)> function_type;
   
   jacobian() = default;

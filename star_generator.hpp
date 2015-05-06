@@ -27,6 +27,7 @@
 #include <boost/mpi.hpp>
 #include <boost/serialization/vector.hpp>
 #include "star.hpp"
+#include "input.hpp"
 
 namespace nanolens{
 
@@ -68,7 +69,7 @@ public:
     
     boost::mpi::broadcast(_comm, out, _master_rank);
     
-    _last_star_list = out;
+    _star_list = out;
   }
   
   
@@ -103,19 +104,59 @@ public:
     
     boost::mpi::broadcast(_comm, out, _master_rank);
     
-    _last_star_list = out;
+    for(const star& s : out)
+      _star_list.push_back(s);
   }
   
-  // only works on the master process
-  void save_generated_stars(const std::string& filename)
+  void from_random_distribution(std::size_t num_stars,
+                                std::vector<star>& out,
+                                const configuration::random_distribution_descriptor& rand_x,
+                                const configuration::random_distribution_descriptor& rand_y,
+                                const configuration::random_distribution_descriptor& rand_mass)
   {
     if(_comm.rank() == _master_rank)
     {
-      std::ofstream file(filename.c_str(), std::ios::out | std::ios::trunc);
+      out.clear();
+      
+      std::vector<util::scalar> x_values;
+      std::vector<util::scalar> y_values;
+      std::vector<util::scalar> masses;
+      
+      generate_random_numbers(num_stars, rand_x, x_values);
+      generate_random_numbers(num_stars, rand_y, y_values);
+      generate_random_numbers(num_stars, rand_mass, masses);
+      
+      for(std::size_t i = 0; i < num_stars; ++i)
+      {
+        util::vector2 position;
+        position[0] = x_values[i];
+        position[1] = y_values[i];
+
+        util::scalar mass = std::abs(masses[i]);
+
+        out.push_back(star(position, mass));
+      }
+    }
+    
+    boost::mpi::broadcast(_comm, out, _master_rank);
+    
+    for(const star& s : out)
+      _star_list.push_back(s);
+  }
+  
+  // only works on the master process
+  void save_generated_stars(const std::string& filename, bool append=false)
+  {
+    if(_comm.rank() == _master_rank)
+    {
+      std::ofstream file;
+      if(!append)
+        file.open(filename.c_str(), std::ios::out | std::ios::trunc);
+      else file.open(filename.c_str(), std::ios::out | std::ios::app);
       
       if(file.is_open())
       {
-        for(const star& s : _last_star_list)
+        for(const star& s : _star_list)
         {
           file << s.get_position()[0] << " " 
                << s.get_position()[1] << " " 
@@ -126,8 +167,45 @@ public:
       }
     }
   }
+  
+  const std::vector<star>& get_generated_stars() const
+  { return _star_list; }
+  
+  void clear_generated_stars()
+  { _star_list.clear(); }
 private:
-  std::vector<star> _last_star_list;
+  
+  inline void generate_random_numbers(std::size_t num_values,
+                               const configuration::random_distribution_descriptor& descr,
+                               std::vector<util::scalar>& out)
+  {
+    if(descr.get_type() == configuration::random_distribution_descriptor::NORMAL)
+      generate_random_numbers(num_values,
+                              std::normal_distribution<>(descr.get_center(), descr.get_width()),
+                              out);
+    else if(descr.get_type() == configuration::random_distribution_descriptor::UNIFORM)
+      generate_random_numbers(num_values,
+                          std::uniform_real_distribution<>(descr.get_center()-descr.get_width(), 
+                                                           descr.get_center()+descr.get_width()),
+                          out);  
+      
+  }
+  
+  template<class Distribution>
+  void generate_random_numbers(std::size_t num_values,
+                               const Distribution& distr,
+                               std::vector<util::scalar>& out)
+  {
+    out.clear();
+    
+    Distribution d = distr;
+    for(std::size_t i = 0; i < num_values; ++i)
+    {
+      out.push_back(d(_rand_generator));
+    }
+  }
+  
+  std::vector<star> _star_list;
   
   std::random_device _rd;
   std::mt19937 _rand_generator;

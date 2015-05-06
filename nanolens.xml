@@ -1,0 +1,22 @@
+<nanolens>
+  <system>
+    <source_plane>
+      <position x="0.0" y="0.0" />
+      <physical_size x="25.0" y="25.0"/>
+      <num_pixels x="100" y="100" />
+    </source_plane>
+  <lens_plane>
+    <star_generator type="from_file" filename="starfile.dat"/>
+    <star_generator type="from_random_distribution" num_stars="1500">
+      <x distribution="gaussian" mean="0.0" stddev="50.0" />
+      <y distribution="gaussian" mean="0.0" stddev="50.0" />
+      <mass distribution="uniform" min="0.5" max="1.2" />
+    </star_generator>
+  </lens_plane>
+  <observer_plane>
+    <position x="0.0" y="0.0" />
+  </observer_plane>
+  <dL>1.0</dL>
+  <dLS>1.0</dLS>
+ </system>
+</nanolens>

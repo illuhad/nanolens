@@ -98,8 +98,12 @@ public:
     {
       std::size_t px_x = std::max(npixels_x / 2, static_cast<std::size_t>(1));
       
-      for(std::size_t px_y = 0; px_y < benchmark_size; ++px_y)
+      std::size_t px_y = 0;
+      for(std::size_t i = 0; i < benchmark_size; ++i, ++px_y)
       {
+        if(px_y >= npixels_y)
+          px_y = 0;
+        
         util::vector2 pixel_position = _screen->get_pixel_coordinates({px_x, px_y});
 
         pixel_evaluator.get_pixel_magnification(pixel_position,

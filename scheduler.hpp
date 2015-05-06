@@ -33,7 +33,7 @@ public:
   : _comm(comm) {}
   
   template<class Function>
-  void run(size_t num_job_entities, Function test_job)
+  void run(std::size_t num_job_entities, Function test_job)
   { 
     util::timer t;
     
@@ -48,16 +48,20 @@ public:
     double sum = std::accumulate(_performance_statistic.begin(), _performance_statistic.end(), 0.0);
     
     for(double& element : _performance_statistic)
-      element /= sum; 
+      element /= sum;
     
-    _num_jobs = num_job_entities;
+    create_schedule_for_performance_statistic(num_job_entities);
     
-    calculate_ownership_range();
+  }
+  
+  void uniform(std::size_t num_jobs)
+  {
+    _performance_statistic.resize(_comm.size());
     
-    boost::mpi::all_gather(_comm, _own_beg, this->_all_begins);
-    boost::mpi::all_gather(_comm, _own_end, this->_all_ends);
+    for(std::size_t i = 0; i < _performance_statistic.size(); ++i)
+      _performance_statistic[i] = 1.0 / static_cast<util::scalar>(_performance_statistic.size());
     
-    assert(_all_begins.size() == _all_ends.size());
+    create_schedule_for_performance_statistic(num_jobs);
   }
   
   const std::vector<double>& get_relative_performances() const
@@ -105,6 +109,18 @@ public:
       static_cast<double>(get_num_assigned_jobs());
   }
 private:
+  void create_schedule_for_performance_statistic(std::size_t num_job_entities)
+  {
+    _num_jobs = num_job_entities;
+    
+    calculate_ownership_range();
+    
+    boost::mpi::all_gather(_comm, _own_beg, this->_all_begins);
+    boost::mpi::all_gather(_comm, _own_end, this->_all_ends);
+    
+    assert(_all_begins.size() == _all_ends.size());
+  }
+  
   void calculate_ownership_range()
   {
     int rank = _comm.rank();

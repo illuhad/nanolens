@@ -32,11 +32,18 @@ namespace nanolens
   namespace util
   {
     typedef double scalar;
-    typedef std::array<scalar, 3> vector3;
-    typedef std::array<scalar, 2> vector2;
     
     template<typename ScalarType, std::size_t N>
-    using matrix_nxn = std::array<std::array<ScalarType, N>, N>;
+    using vector = std::array<ScalarType, N>;
+    
+    typedef vector<scalar, 3> vector3;
+    typedef vector<scalar, 2> vector2;
+    
+    template<typename ScalarType, std::size_t M, std::size_t N>
+    using matrix = std::array<std::array<ScalarType, N>, M>;
+    
+    template<typename ScalarType, std::size_t N>
+    using matrix_nxn = matrix<ScalarType, N, N>;
     
     const scalar G = 1.;
     const scalar c = 1.;
@@ -102,6 +109,22 @@ namespace nanolens
       scalar length = std::sqrt(dot(a, a));
       scale(a, 1.0 / length);
     }
+    
+    template<typename ScalarType, std::size_t M, std::size_t N>
+    void matrix_vector_mult(const matrix<ScalarType, M, N>& mat,
+                            const vector<ScalarType, N>& x,
+                            vector<ScalarType,M>& out)
+    {
+      for(std::size_t i = 0; i < M; ++i)
+      {
+        out[i] = 0.0;
+        for(std::size_t j = 0; j < N; ++j)
+        {
+          out[i] += mat[i][j] * x[j];
+        }
+      }
+    }
+    
        
     template<typename T>
     class multi_array

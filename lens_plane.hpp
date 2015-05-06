@@ -25,7 +25,7 @@
 #include "util.hpp"
 #include "plane.hpp"
 #include "star.hpp"
-#include "nested_interpolation_grid.hpp"
+#include "tree.hpp"
 
 namespace nanolens
 {
@@ -45,7 +45,9 @@ namespace nanolens
     explicit lens_plane(const std::vector<star>& deflectors,
                         util::scalar distance_to_prev)
     : _deflectors(deflectors), plane(distance_to_prev), 
-    _grid(deflectors, 3, {-50.0, -50.0}, {50.0, 50.0}, {100, 100}, {2, 2})
+      //_grid(deflectors, {-150.0, -150.0}, {150.0, 150.0}, {64, 64}, 1.e-1)
+     //_grid(deflectors, 1, {-150.0, -150.0}, {150.0, 150.0}, {200, 200}, {2,2})
+    _tree(deflectors, 0.6)
     {
       _distance_to_nearest_star.reserve(_deflectors.size());
       
@@ -82,7 +84,7 @@ namespace nanolens
 //        _deflectors[i].calculate_deflection_angle(position, deflection);
 //        util::add(result, deflection);
 //      }
-      result = _grid.get_deflection(position);
+      result = _tree.get_deflection(position);
     }
     
     // Einstein radius for object of mass 1
@@ -255,7 +257,9 @@ namespace nanolens
     
     util::scalar _min_distance;
     
-    nested_interpolation_grid _grid;
+    //deflection_grid _grid;
+    barnes_hut_tree _tree;
+    //nested_interpolation_grid _grid;
   };
 }
 

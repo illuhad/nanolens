@@ -7,11 +7,11 @@
       <itemPath>geometry.hpp</itemPath>
       <itemPath>grid.hpp</itemPath>
       <itemPath>image_finder.hpp</itemPath>
+      <itemPath>input.hpp</itemPath>
       <itemPath>lens_plane.hpp</itemPath>
       <itemPath>lensing_jacobian.hpp</itemPath>
       <itemPath>magnification.hpp</itemPath>
       <itemPath>mesh.hpp</itemPath>
-      <itemPath>nested_interpolation_grid.hpp</itemPath>
       <itemPath>numeric.hpp</itemPath>
       <itemPath>observer_plane.hpp</itemPath>
       <itemPath>pixel_processor.hpp</itemPath>
@@ -25,6 +25,7 @@
       <itemPath>status.hpp</itemPath>
       <itemPath>system.hpp</itemPath>
       <itemPath>timer.hpp</itemPath>
+      <itemPath>tree.hpp</itemPath>
       <itemPath>util.hpp</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
@@ -68,6 +69,7 @@
           <linkerLibItems>
             <linkerOptionItem>-lboost_mpi</linkerOptionItem>
             <linkerOptionItem>-lboost_serialization</linkerOptionItem>
+            <linkerOptionItem>-lcfitsio</linkerOptionItem>
           </linkerLibItems>
         </linkerTool>
       </compileType>
@@ -76,6 +78,8 @@
       <item path="grid.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="image_finder.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="input.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -86,8 +90,6 @@
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="nested_interpolation_grid.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="numeric.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -114,6 +116,8 @@
       <item path="system.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="timer.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tree.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="util.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -156,6 +160,8 @@
       </item>
       <item path="image_finder.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="input.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="lensing_jacobian.hpp" ex="false" tool="3" flavor2="0">
@@ -165,8 +171,6 @@
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="mesh.hpp" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="nested_interpolation_grid.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="numeric.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -193,6 +197,8 @@
       <item path="system.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="timer.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="tree.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="util.hpp" ex="false" tool="3" flavor2="0">
       </item>

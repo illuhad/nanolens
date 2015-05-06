@@ -261,7 +261,7 @@ public:
     }
     
     
-    this->_handler(status_info("Distributing results among processes"));
+    this->_handler(status_info("Waiting for processes"));
     
     // Retrieve results from other processes, combine root lists, or add
     // the first entries if we are only interested in counting the number
