@@ -95,181 +95,210 @@ private:
   BOOST_SERIALIZATION_SPLIT_MEMBER()
 };
 
-
-namespace impl_{
-template<unsigned Multipole_order>
-struct pseudo_star_data
-{};
-
-template<>
-struct pseudo_star_data<1>
-{
-  
-  util::scalar defl_constant;
-  util::scalar total_mass;
-  util::vector2 monopole_position;
-  
-  template<unsigned Init_multipole_order>
-  static void init(pseudo_star_data<Init_multipole_order>& e,
-                   const std::vector<star>& star_list)
-  {
-    static_assert(Init_multipole_order >= 1, "");
-    
-    e.monopole_position = {0.0, 0.0};
-    e.total_mass = 0.0;
-    for(const star& s : star_list)
-    {
-      util::scale_add(e.monopole_position, s.get_position(), s.get_mass());
-      e.total_mass += s.get_mass();
-    }
-    util::scale(e.monopole_position, 1.0 / e.total_mass);
-    
-    e.defl_constant = 4 * util::G / util::square(util::c);  
-  }
-  
-  template<class Expansion_type>
-  static util::scalar get_squared_expansion(const Expansion_type& e,
-                                      const util::vector2& R,
-                                      util::scalar R_squared) // R is vector from cms
-  {
-    return e.total_mass / R_squared;
-  }
-};
-
-template<>
-struct pseudo_star_data<2>
-{
-  util::scalar defl_constant;
-  util::scalar total_mass;
-  util::vector2 monopole_position;
-  util::vector2 dipole;
-  
-  template<unsigned Init_multipole_order>
-  static void init(pseudo_star_data<Init_multipole_order>& e,
-                   const std::vector<star>& star_list)
-  {
-    static_assert(Init_multipole_order >= 2, "");
-    
-    pseudo_star_data<1>::init(e, star_list);
-    
-    e.dipole = {0.0, 0.0};
-    for(const star& s : star_list)
-    {
-      util::vector2 contribution = s.get_position();
-      util::sub(contribution, e.monopole_position);
-      util::scale(contribution, s.get_mass());
-      util::add(e.dipole, contribution);
-    }
-  }
-  
-  template<class Expansion_type>
-  static util::scalar get_squared_expansion(const Expansion_type& e,
-                                      const util::vector2& R,
-                                      util::scalar R_squared) // R is vector from cms
-  {
-    util::scalar result = pseudo_star_data<1>::get_squared_expansion(e, R, R_squared);
-    
-    result += 1.0 / util::square(R_squared) * util::dot(e.dipole, R);
-    return result;
-  }
-};
-
-template<>
-struct pseudo_star_data<3>
-{
-  util::scalar defl_constant;
-  util::scalar total_mass;
-  util::vector2 monopole_position;
-  util::vector2 dipole;
-  util::matrix_nxn<util::scalar, 2> quadrupole;
-  
-  template<unsigned Init_multipole_order>
-  static void init(pseudo_star_data<Init_multipole_order>& e,
-                   const std::vector<star>& star_list)
-  {
-    static_assert(Init_multipole_order >= 3, "");
-    
-    pseudo_star_data<2>::init(e, star_list);
-    
-    for(std::size_t i = 0; i < 2; ++i)
-      for(std::size_t j = 0; j < 2; ++j)
-      {
-        e.quadrupole[i][j] = 0.0;
-        for(const star& s : star_list)
-        {
-          const util::vector2& r = s.get_position();
-          util::vector2 R = r;
-          util::sub(R, e.monopole_position);
-
-          e.quadrupole[i][j] += s.get_mass() * (3. * R[i] * R[j] - util::dot(R,R) * numeric::kronecker_delta(i,j));
-        }
-      }
-  }
-  
-  template<class Expansion_type>
-  static util::scalar get_squared_expansion(const Expansion_type& e,
-                                      const util::vector2& R,
-                                      util::scalar R_squared) // R is vector from cms
-  {
-    util::scalar result = pseudo_star_data<2>::get_squared_expansion(e, R, R_squared);
-    
-    util::scalar quadrupole_factor = 1.0 / (6.0 * util::square(R_squared) * R_squared);
-    for(std::size_t i = 0; i < 2; ++i)
-      for(std::size_t j = 0; j < 2; ++j)
-      {
-        result += quadrupole_factor * 
-          e.quadrupole[i][j] * (3. * R[i] * R[j] - numeric::kronecker_delta(i,j) * R_squared);
-      }
-    return result;
-  }
-};
-
-}
-
 template<unsigned Multipole_order>
 class pseudo_star
 {
 public:
-  static_assert(Multipole_order > 0, "Order must be at least 1 for monopole");
-  static_assert(Multipole_order <= 3, "No moments higher than quadrupole are supported");
+  static_assert(Multipole_order <= 6, "No moments higher than 64-pole are supported");
   
   pseudo_star() = default;
   
   pseudo_star(const std::vector<star>& star_list)
+  : _deflection_constant(4 * util::G / util::square(util::c))
   {
-    impl_::pseudo_star_data<Multipole_order>::init(this->_data, star_list);
+    _center_of_mass = {0.0, 0.0};
+    _total_mass = 0.0;
+    for(std::size_t i = 0; i < Multipole_order - 1; ++i)
+    {
+      _multipole_moments[i] = {0.0, 0.0};
+    }
+    
+    for(const star& s : star_list)
+    {
+      _total_mass += s.get_mass();
+      util::add(_center_of_mass, s.get_position());
+    }
+    util::scale(_center_of_mass, 1.0 / _total_mass);
+    
+    for(const star& s : star_list)
+    {
+      util::vector2 delta = s.get_position();
+      util::sub(delta, _center_of_mass);
+      
+      std::array<util::scalar, 7> delta_x_power;
+      std::array<util::scalar, 7> delta_y_power;
+      delta_x_power[0] = 1.;
+      delta_y_power[0] = 1.;
+      delta_x_power[1] = delta[0];
+      delta_y_power[1] = delta[1];
+      
+      for(std::size_t i = 2; i < 7; ++i)
+      {
+        delta_x_power[i] = delta[0] * delta_x_power[i - 1];
+        delta_y_power[i] = delta[1] * delta_y_power[i - 1];
+      }
+      
+      if(Multipole_order >= 2)
+      {
+        // Quadrupole
+        _multipole_moments[0][0] += s.get_mass() * (delta_x_power[2] - delta_y_power[2]);
+        _multipole_moments[0][1] += 2 * s.get_mass() * delta_x_power[1] * delta_x_power[1];
+      }
+      
+      if(Multipole_order >= 3)
+      {
+        // Octopole
+        _multipole_moments[1][0] += s.get_mass() * (delta_x_power[3] - 3. * delta_x_power[1] * delta_y_power[2]);
+        _multipole_moments[1][1] += s.get_mass() * (3 * delta_x_power[2] * delta_y_power[1] - delta_y_power[3]);     
+      }
+      
+      if(Multipole_order >= 4)
+      {
+        // 16-pole
+        _multipole_moments[2][0] += 
+          s.get_mass() * (  delta_x_power[4] 
+                          - 6. * delta_x_power[2] * delta_y_power[2] 
+                          + delta_y_power[4]);
+        
+        _multipole_moments[2][1] += 
+          s.get_mass() * (  4 * delta_x_power[3] * delta_y_power[1] 
+                          - 4 * delta_x_power[1] * delta_y_power[3]);       
+      }
+      
+      if(Multipole_order >= 5)
+      {
+        // 32-pole
+        _multipole_moments[3][0] += 
+          s.get_mass() * (  delta_x_power[5] 
+                          - 10. * delta_x_power[3] * delta_y_power[2] 
+                           + 5. * delta_x_power[1] * delta_y_power[4]);
+        _multipole_moments[3][1] += 
+          s.get_mass() * (   5 * delta_x_power[4] * delta_y_power[1] 
+                          - 10 * delta_x_power[2] * delta_y_power[3]
+                           + delta_y_power[5]);         
+      }
+      
+      if(Multipole_order >= 6)
+      {
+        // 64-pole
+        _multipole_moments[4][0] +=
+          s.get_mass() * (  delta_x_power[6] 
+                          - 15 * delta_x_power[4] * delta_y_power[2] 
+                          + 15 * delta_x_power[2] * delta_y_power[4] 
+                          - delta_y_power[6]);
+        
+        _multipole_moments[4][1] +=
+          s.get_mass() * (6 * delta_x_power[5] * delta_y_power[1] 
+                       - 20 * delta_x_power[3] * delta_y_power[3] 
+                        + 6 * delta_x_power[1] * delta_y_power[5]);
+      }
+    }
   }  
   
   inline void calculate_deflection_angle(const util::vector2& position,
                                         util::vector2& result) const
   {
     //TODO Think about a solution for this case
-    assert(position != _data.monopole_position);
+    assert(position != this->_center_of_mass);
     
-    util::vector2 R = this->_data.monopole_position;
-    util::sub(R, position);
+    util::vector2 R = position;
+    util::sub(R, this->_center_of_mass);
 
     util::scalar squared_norm = util::dot(R, R);
 
-    util::vector2 defl_direction = R;
-    util::scale(defl_direction, _data.defl_constant);
+    // monopole
+    result = R;
+    util::scale(result, -_total_mass / squared_norm);
+
+    std::array<util::vector2, 8> r_power;
+    r_power[0] = {1., 1.};
+    r_power[1] = R;
+    for(std::size_t i = 2; i < r_power.size(); ++i)
+    {
+      r_power[i][0] = R[0] * r_power[i - 1][0];
+      r_power[i][1] = R[1] * r_power[i - 1][1];
+    }
     
-    util::scalar multipole_expansion = 
-      impl_::pseudo_star_data<Multipole_order>::get_squared_expansion(_data, R, squared_norm);
+    std::array<util::vector2, Multipole_order - 1> multipole_evaluation_coefficients;
+    
+    if(Multipole_order >= 2)
+    {
+      multipole_evaluation_coefficients[0][0] = r_power[3][0] - 3 * r_power[1][0] * r_power[2][1];
+      multipole_evaluation_coefficients[0][1] = 3 * r_power[2][0]*r_power[1][1] - r_power[3][1];
+    }
+    
+    if(Multipole_order >= 3)
+    {
+      multipole_evaluation_coefficients[1][0] =
+        r_power[4][0] - 6 * r_power[2][0] * r_power[2][1] + r_power[4][1];
       
-    util::scale(defl_direction, multipole_expansion);
+      multipole_evaluation_coefficients[1][1] =
+        4 * r_power[3][0] * r_power[1][1] - 4 * r_power[1][0] * r_power[3][1];
+    }
     
-    result = defl_direction;
+    if(Multipole_order >= 4)
+    {
+      multipole_evaluation_coefficients[2][0] =
+        r_power[5][0] - 10 * r_power[3][0] * r_power[2][1] + 5 * r_power[1][0] * r_power[4][1];
+      
+      multipole_evaluation_coefficients[2][1] =
+        5 * r_power[4][0] * r_power[1][1] - 10 * r_power[2][0] * r_power[3][1] + r_power[5][1];
+    }
+    
+    if(Multipole_order >= 5)
+    {
+      multipole_evaluation_coefficients[3][0] =
+        r_power[6][0] - 15 * r_power[4][0] * r_power[2][1] + 15 * r_power[2][0] * r_power[4][1] - r_power[6][1];
+      
+      multipole_evaluation_coefficients[3][1] =
+        6 * r_power[5][0] * r_power[1][1] - 20 * r_power[3][0] * r_power[3][1] + 6 * r_power[1][0] * r_power[5][1];
+    }
+    
+    if(Multipole_order >= 6)
+    {
+      multipole_evaluation_coefficients[4][0] =
+        r_power[7][0] - 21 * r_power[5][0] * r_power[2][1] 
+        + 35 * r_power[3][0] * r_power[4][1] - 7 * r_power[1][0] * r_power[6][1];
+      
+      multipole_evaluation_coefficients[4][1] =
+        7 * r_power[6][0] * r_power[1][1] - 35 * r_power[4][0] * r_power[3][1] 
+        + 21 * r_power[2][0] * r_power[5][1] - r_power[7][1];
+    }
+    
+    // Add multipole corrections
+    util::scalar r_power2i_plus2 = squared_norm * squared_norm * squared_norm;
+    for(std::size_t i = 0; i < Multipole_order - 1; ++i)
+    {
+      util::scalar m0c0 = _multipole_moments[i][0] * multipole_evaluation_coefficients[i][0];
+      util::scalar m1c1 = _multipole_moments[i][1] * multipole_evaluation_coefficients[i][1];
+      
+      util::scalar m1c0 = _multipole_moments[i][1] * multipole_evaluation_coefficients[i][0];
+      util::scalar m0c1 = _multipole_moments[i][0] * multipole_evaluation_coefficients[i][1];
+      
+      util::vector2 contribution = 
+      {
+        m0c0 + m1c1,
+        m1c0 - m0c1
+      };
+      
+      result[0] += contribution[0] / r_power2i_plus2;
+      result[1] += contribution[1] / r_power2i_plus2;
+
+      r_power2i_plus2 *= squared_norm;
+    }
+    
+    util::scale(result, _deflection_constant);
   }
   
   const util::vector2& center_of_mass() const
   {
-    return _data.monopole_position;
+    return _center_of_mass;
   }
 private:
- 
-  
-  impl_::pseudo_star_data<Multipole_order> _data;
+  util::scalar _total_mass;
+  util::vector2 _center_of_mass;
+  util::scalar _deflection_constant;
+  std::array<util::vector2, Multipole_order - 1> _multipole_moments;
 
 };
 

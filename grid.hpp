@@ -27,7 +27,8 @@
 namespace nanolens{
 namespace util{
 
-template<typename FieldType, class ValueType, size_t Dimension, bool EdgeLayer = true>
+
+template<typename FieldType, class ValueType, std::size_t Dimension, bool EdgeLayer = true>
 class grid
 {
 public:

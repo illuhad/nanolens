@@ -111,7 +111,7 @@ public:
       BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
               _tree.get_child("nanolens.system.lens_plane"))
       {
-        //try
+        try
         {
           if(v.first == "star_generator")
           {
@@ -134,8 +134,8 @@ public:
             }
           }
         }
-        //catch(...)
-        //{}
+        catch(...)
+        {}
       }
     }
     boost::mpi::broadcast(_comm, *this, _master_rank);

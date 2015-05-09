@@ -82,7 +82,7 @@ int main(int argc, char** argv)
   
   for(const std::string& filename : config.get_star_files())
   {
-    master_cout << "Loading stars from file: " << filename << std::endl;
+    master_cout << "Star genesis: Processing file: " << filename << std::endl;
     std::vector<nanolens::star> generated_stars;
     star_gen.from_file(filename, stars); 
     
@@ -93,7 +93,7 @@ int main(int argc, char** argv)
   for(const nanolens::configuration::random_star_generator_descriptor& descr : 
       config.get_random_star_generators())
   {
-    master_cout << "Generating " << descr.num_stars << " random stars...\n";
+    master_cout << "Star genesis: Generating " << descr.num_stars << " random stars...\n";
     
     std::vector<nanolens::star> generated_stars;
     
@@ -106,6 +106,7 @@ int main(int argc, char** argv)
     for(const nanolens::star& s : generated_stars)
       stars.push_back(s);
   }
+  master_cout << "Star genesis: Created " << stars.size() << " stars." << std::endl;
   
   star_gen.save_generated_stars("nanolens_star_log.dat");
 
