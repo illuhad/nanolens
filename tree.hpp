@@ -321,7 +321,8 @@ public:
   
   barnes_hut_tree(const std::vector<star>& stars,
              util::scalar accuracy)
-  : _accuracy_squared(util::square(accuracy)), _root_descriptor(0, nullptr)
+  : _accuracy_squared(util::square(accuracy)),
+    _root_descriptor(0, nullptr)
   {
 
     util::vector2 min_extent = {0.0, 0.0};
@@ -371,17 +372,43 @@ public:
     }
     _tree_root->init_pseudo_stars();
     
+    _tree_preevaluation_grid = preevaluation_grid_type(min_extent, max_extent, {100, 100});
+    preevaluate_tree();
+    
   }
   
   
-  util::vector2 get_deflection(const util::vector2& pos) const
+  inline util::vector2 get_deflection(const util::vector2& pos) const
   {
-    util::vector2 defl  = get_deflection_of_cell(*_tree_root, pos);
-    return defl;
+    return get_deflection_from_preevaluation_grid(pos);
   }
   
 private:
-  inline util::vector2 get_deflection_of_cell(const grid_cell& cell, const util::vector2& pos) const
+  inline util::vector2 get_deflection_from_preevaluation_grid(const util::vector2& pos) const
+  {
+    const tree_preevaluation_entry& grid_entry = _tree_preevaluation_grid[pos];
+    
+    util::vector2 result = {0.0, 0.0};
+    
+    for(unsigned i = 0; i < grid_entry.close_lenses.size(); ++i)
+    {
+      util::vector2 contribution;
+      grid_entry.close_lenses[i].calculate_deflection_angle(pos, contribution);
+      util::add(result, contribution);
+    }
+    
+    for(unsigned i = 0; i < grid_entry.far_cells.size(); ++i)
+    {
+      util::vector2 contribution;
+      _cell_db[grid_entry.far_cells[i]].get_pseudo_star().calculate_deflection_angle(pos, contribution);
+      util::add(result, contribution);
+    }
+    
+    return result;
+  }
+  
+  inline util::vector2 get_deflection_of_cell_by_tree_traversal(const grid_cell& cell, 
+                                                                const util::vector2& pos) const
   {
     util::vector2 result = {0.0, 0.0};
     
@@ -416,7 +443,7 @@ private:
           for(unsigned y = 0;  y < grid_cell::N_subcells_per_dim; ++y)
           {
             util::vector2 contribution = 
-              get_deflection_of_cell(_cell_db[cell.get_sub_cells()[x][y]], pos);
+              get_deflection_of_cell_by_tree_traversal(_cell_db[cell.get_sub_cells()[x][y]], pos);
             
             util::add(result, contribution);
           }
@@ -427,7 +454,7 @@ private:
     return result;
   }
   
-  void print_cell(std::ostream& ostr, tree_impl_::cell_id cell)
+  void print_cell_coordinates(std::ostream& ostr, tree_impl_::cell_id cell)
   {
     std::array<util::vector2, 4> corners;
     
@@ -450,10 +477,76 @@ private:
     if(!_cell_db[cell].is_leaf())
       for(unsigned x = 0; x < 2; ++x)
         for(unsigned y = 0; y < 2; ++y)
-          print_cell(ostr, _cell_db[cell].get_sub_cells()[x][y]);
+          print_cell_coordinates(ostr, _cell_db[cell].get_sub_cells()[x][y]);
     
   }
+  
+  struct tree_preevaluation_entry
+  {
+    std::vector<star> close_lenses;
+    std::vector<tree_impl_::cell_id> far_cells;
+  };
+  
+  typedef util::grid2d<util::scalar, tree_preevaluation_entry> preevaluation_grid_type;
+  
+  void find_contributing_cells(const util::vector2& pos,
+                               tree_impl_::cell_id cell_idx,
+                               std::vector<star>& close_lenses,
+                               std::vector<tree_impl_::cell_id>& far_cells)
+  {
+    const grid_cell& cell = _cell_db[cell_idx];
+    
+    if(cell.is_leaf())
+    {
+      for(unsigned i = 0; i < cell.get_num_directly_computed_stars(); ++i)
+        close_lenses.push_back(cell.get_directly_computed_stars()[i]);
+    }
+    else
+    {
+      // Check if we can use the approximation
+      util::vector2 diff = pos;
+      util::sub(diff, cell.get_cell_center_of_mass());
+      
+      util::scalar distance_squared = util::dot(diff, diff);
+      
+      if(util::square(cell.get_cell_diameter()) / distance_squared < _accuracy_squared)
+      {
+        far_cells.push_back(cell_idx);
+      }
+      else
+      {
+        for(unsigned x = 0; x < grid_cell::N_subcells_per_dim; ++x)
+          for(unsigned y = 0;  y < grid_cell::N_subcells_per_dim; ++y)
+          {
+            find_contributing_cells(pos, 
+                                    cell.get_sub_cells()[x][y], 
+                                    close_lenses,
+                                    far_cells);
+          }
 
+      }
+    }
+  }
+  
+  void preevaluate_tree()
+  {
+    for(std::size_t x = 0; x < _tree_preevaluation_grid.get_total_num_buckets(0); ++x)
+      for(std::size_t y = 0; y < _tree_preevaluation_grid.get_total_num_buckets(1); ++y)
+      {
+        preevaluation_grid_type::index_type grid_entry_idx = {x, y};
+        
+        util::vector2 cell_position =
+                _tree_preevaluation_grid.get_central_position_of_bucket(grid_entry_idx);
+        
+        find_contributing_cells(cell_position,
+                                _root_descriptor.get_cell_id(),
+                                _tree_preevaluation_grid[grid_entry_idx].close_lenses,
+                                _tree_preevaluation_grid[grid_entry_idx].far_cells);
+      }
+  }
+  
+  
+  preevaluation_grid_type _tree_preevaluation_grid;
   grid_cell::this_descriptor _root_descriptor;
   grid_cell* _tree_root;
   tree_impl_::cell_db<grid_cell> _cell_db;

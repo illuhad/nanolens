@@ -42,8 +42,8 @@ OBJECTFILES= \
 CFLAGS=
 
 # CC Compiler Flags
-CCFLAGS=-march=native -ffast-math -Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter
-CXXFLAGS=-march=native -ffast-math -Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter
+CCFLAGS=-march=native -ffast-math -Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter -fstrict-aliasing
+CXXFLAGS=-march=native -ffast-math -Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter -fstrict-aliasing
 
 # Fortran Compiler Flags
 FFLAGS=

@@ -238,6 +238,7 @@ public:
     this->_handler(status_info("Scheduling complete", &ray_shooting_schedule, ""));
     
     std::size_t num_jobs_done = 0;
+    double prev_progress = -1.;
     for(std::size_t x_idx = 0; x_idx < num_steps[0]; ++x_idx)
     { 
       if(ray_shooting_schedule.is_scheduled_to_this_process(x_idx))
@@ -245,7 +246,11 @@ public:
         double progress = static_cast<double>(num_jobs_done) / 
                           static_cast<double>(ray_shooting_schedule.get_num_assigned_jobs());
         
-        this->_handler(status_info("Evaluating ray function", nullptr, "", progress));
+        if(progress - prev_progress > 0.005)
+        {
+          this->_handler(status_info("Evaluating ray function", nullptr, "", progress));
+          prev_progress = progress;
+        }
         
         for(std::size_t y_idx = 0; y_idx < num_steps[1]; ++y_idx)
         {

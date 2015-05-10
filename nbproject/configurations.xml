@@ -8,6 +8,7 @@
       <itemPath>grid.hpp</itemPath>
       <itemPath>image_finder.hpp</itemPath>
       <itemPath>input.hpp</itemPath>
+      <itemPath>interpolator.hpp</itemPath>
       <itemPath>lens_plane.hpp</itemPath>
       <itemPath>lensing_jacobian.hpp</itemPath>
       <itemPath>magnification.hpp</itemPath>
@@ -81,6 +82,8 @@
       </item>
       <item path="input.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="interpolator.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="lensing_jacobian.hpp" ex="false" tool="3" flavor2="0">
@@ -136,7 +139,7 @@
           <developmentMode>6</developmentMode>
           <standard>8</standard>
           <commandlineTool>mpic++</commandlineTool>
-          <commandLine>-march=native -ffast-math -Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter</commandLine>
+          <commandLine>-march=native -ffast-math -Wall -Wextra -Wpedantic -Wno-reorder -Wno-unused-parameter -fstrict-aliasing</commandLine>
           <warningLevel>3</warningLevel>
         </ccTool>
         <fortranCompilerTool>
@@ -161,6 +164,8 @@
       <item path="image_finder.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="input.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="interpolator.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="lens_plane.hpp" ex="false" tool="3" flavor2="0">
       </item>

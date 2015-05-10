@@ -188,7 +188,7 @@ public:
   }
   
     
-  index_type get_index(const scalar_array_type& point) const
+  inline index_type get_index(const scalar_array_type& point) const
   {
     index_type result;
     
