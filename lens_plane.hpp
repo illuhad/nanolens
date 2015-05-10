@@ -47,7 +47,7 @@ namespace nanolens
     : _deflectors(deflectors), plane(distance_to_prev), 
       //_grid(deflectors, {-150.0, -150.0}, {150.0, 150.0}, {64, 64}, 1.e-1)
      //_grid(deflectors, 1, {-150.0, -150.0}, {150.0, 150.0}, {200, 200}, {2,2})
-    _tree(deflectors, 0.6)
+    _tree(deflectors, 0.8)
     {
       _distance_to_nearest_star.reserve(_deflectors.size());
       
@@ -74,7 +74,7 @@ namespace nanolens
       _min_distance = std::sqrt(min);
     }
     
-    void get_deflection_angle(const util::vector2& position, util::vector2& result) const
+    inline void get_deflection_angle(const util::vector2& position, util::vector2& result) const
     {
 //      util::vector2 deflection;
 //      result = {0.0, 0.0};

@@ -103,10 +103,17 @@ public:
     
     barnes_hut_grid_cell<Multipole_order>* get_this()
     { return _db->data() + _this_id; }
+    
+    cell_id get_cell_id() const
+    { return _this_id; }
   };
 
   inline const util::vector2& get_cell_center() const
   { return _center; }
+  
+  // only defined if this cell is not a leaf
+  inline const util::vector2& get_cell_center_of_mass() const
+  { return _approx_pseudo_star.center_of_mass(); }
   
   inline util::scalar get_cell_diameter() const
   { return _diameter; }
@@ -122,6 +129,11 @@ public:
   const std::vector<star>& get_interior_stars() const
   {
     return _interior_stars;
+  }
+  
+  const util::vector2& get_cell_size() const
+  {
+    return _size;
   }
   
   unsigned get_num_directly_computed_stars() const
@@ -149,7 +161,7 @@ public:
     return _max_extent;
   }
   
-  inline bool cell_contains_point(const util::vector2& pos)
+  inline bool cell_contains_point(const util::vector2& pos) const
   {
     for(std::size_t i = 0; i < N_subcells_per_dim; ++i)
       if(!(_min_extent[i] <= pos[i] && pos[i] < _max_extent[i]))
@@ -219,11 +231,9 @@ public:
 
   void init_pseudo_stars()
   {
-    if(!_interior_stars.empty())
-    {
-      _approx_pseudo_star = pseudo_star<Multipole_order>(this->_interior_stars);
-      _center = _approx_pseudo_star.center_of_mass();
-    }
+    _approx_pseudo_star = pseudo_star<Multipole_order>(this->_interior_stars);
+    _center = _approx_pseudo_star.center_of_mass();
+    
 
     if(!_is_leaf)
     {
@@ -363,23 +373,16 @@ public:
     
   }
   
+  
   util::vector2 get_deflection(const util::vector2& pos) const
   {
-    //std::cerr << "----------------------\n";
-
     util::vector2 defl  = get_deflection_of_cell(*_tree_root, pos);
-
-    //std::cerr << defl[0] << " " << defl[1] << std::endl;
     return defl;
   }
   
 private:
   inline util::vector2 get_deflection_of_cell(const grid_cell& cell, const util::vector2& pos) const
   {
-   // std::cerr << "cell_min = " << cell.get_min_extent()[0] << " "<<cell.get_min_extent()[1] <<
-   //              " cell_max = " << cell.get_max_extent()[0] << " " << cell.get_max_extent()[1] <<
-   //              " nstars = "  << cell.get_interior_stars().size() << std::endl;
-
     util::vector2 result = {0.0, 0.0};
     
     if(cell.is_leaf())
@@ -398,7 +401,7 @@ private:
     {
       // Check if we can use the approximation
       util::vector2 diff = pos;
-      util::sub(diff, cell.get_cell_center());
+      util::sub(diff, cell.get_cell_center_of_mass());
       
       util::scalar distance_squared = util::dot(diff, diff);
       
@@ -422,6 +425,33 @@ private:
     }
     
     return result;
+  }
+  
+  void print_cell(std::ostream& ostr, tree_impl_::cell_id cell)
+  {
+    std::array<util::vector2, 4> corners;
+    
+    util::vector2 min_extent = _cell_db[cell].get_min_extent();
+    util::vector2 max_extent = _cell_db[cell].get_max_extent();
+    util::vector2 cell_size = _cell_db[cell].get_cell_size();
+    
+    corners[0] = min_extent;
+    corners[1] = {min_extent[0] + cell_size[0], min_extent[1]};
+    corners[2] = max_extent;
+    corners[3] = {min_extent[0], min_extent[1] + cell_size[1]};
+    
+    ostr << "\n";
+    for(std::size_t i = 0; i < 4; ++i)
+    {
+      ostr << corners[i][0] << " " << corners[i][1] << std::endl;
+    }
+    ostr << "\n";
+    
+    if(!_cell_db[cell].is_leaf())
+      for(unsigned x = 0; x < 2; ++x)
+        for(unsigned y = 0; y < 2; ++y)
+          print_cell(ostr, _cell_db[cell].get_sub_cells()[x][y]);
+    
   }
 
   grid_cell::this_descriptor _root_descriptor;
