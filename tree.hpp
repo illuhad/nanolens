@@ -25,6 +25,7 @@
 #include "star.hpp"
 #include "numeric.hpp"
 #include "input.hpp"
+#include "interpolator.hpp"
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/point.hpp>
 #include <boost/geometry/geometries/box.hpp>
@@ -372,7 +373,7 @@ public:
     }
     _tree_root->init_pseudo_stars();
     
-    _tree_preevaluation_grid = preevaluation_grid_type(min_extent, max_extent, {100, 100});
+    _tree_preevaluation_grid = preevaluation_grid_type(min_extent, max_extent, {400, 400});
     preevaluate_tree();
     
   }
@@ -397,12 +398,7 @@ private:
       util::add(result, contribution);
     }
     
-    for(unsigned i = 0; i < grid_entry.far_cells.size(); ++i)
-    {
-      util::vector2 contribution;
-      _cell_db[grid_entry.far_cells[i]].get_pseudo_star().calculate_deflection_angle(pos, contribution);
-      util::add(result, contribution);
-    }
+    util::add(result, grid_entry.far_cell_interpolator.interpolate(pos));
     
     return result;
   }
@@ -484,7 +480,7 @@ private:
   struct tree_preevaluation_entry
   {
     std::vector<star> close_lenses;
-    std::vector<tree_impl_::cell_id> far_cells;
+    standard_vector2_interpolator far_cell_interpolator;
   };
   
   typedef util::grid2d<util::scalar, tree_preevaluation_entry> preevaluation_grid_type;
@@ -538,10 +534,36 @@ private:
         util::vector2 cell_position =
                 _tree_preevaluation_grid.get_central_position_of_bucket(grid_entry_idx);
         
+        std::vector<tree_impl_::cell_id> far_cells;
         find_contributing_cells(cell_position,
                                 _root_descriptor.get_cell_id(),
                                 _tree_preevaluation_grid[grid_entry_idx].close_lenses,
-                                _tree_preevaluation_grid[grid_entry_idx].far_cells);
+                                far_cells);
+          
+        util::vector2 bucket_min_extent = 
+          _tree_preevaluation_grid.get_min_position_of_bucket(grid_entry_idx);
+        
+        util::vector2 bucket_max_extent = bucket_min_extent;
+        util::add(bucket_max_extent, _tree_preevaluation_grid.get_bucket_size());
+          
+        
+        _tree_preevaluation_grid[grid_entry_idx].far_cell_interpolator
+                  = standard_vector2_interpolator(bucket_min_extent,
+                                                  bucket_max_extent);
+        _tree_preevaluation_grid[grid_entry_idx].far_cell_interpolator.init(
+        [&far_cells, this](const util::vector2& pos) -> util::vector2
+        {
+          util::vector2 deflection = {0.0, 0.0};
+          for(tree_impl_::cell_id id : far_cells)
+          {
+            util::vector2 contribution;
+            this->_cell_db[id].get_pseudo_star().calculate_deflection_angle(pos, contribution);
+            util::add(deflection, contribution);
+          }
+          return deflection;
+        }
+        );
+        
       }
   }
   

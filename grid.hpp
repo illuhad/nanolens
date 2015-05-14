@@ -260,6 +260,7 @@ public:
     
     return position;
   }
+
   
   scalar_array_type get_central_position_of_bucket(const index_type& p) const
   {
