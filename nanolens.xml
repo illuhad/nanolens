@@ -2,21 +2,23 @@
   <system>
     <source_plane>
       <position x="0.0" y="0.0" />
-      <physical_size x="25.0" y="25.0"/>
-      <num_pixels x="100" y="100" />
+      <physical_size x="44.45" y="25.0"/>
+      <num_pixels x="2880" y="1620" />
     </source_plane>
-  <lens_plane>
-    <star_generator type="from_file" filename="starfile.dat"/>
-    <star_generator type="from_random_distribution" num_stars="1500">
-      <x distribution="gaussian" mean="0.0" stddev="50.0" />
-      <y distribution="gaussian" mean="0.0" stddev="50.0" />
-      <mass distribution="uniform" min="0.5" max="1.2" />
-    </star_generator>
-  </lens_plane>
-  <observer_plane>
-    <position x="0.0" y="0.0" />
-  </observer_plane>
-  <dL>1.0</dL>
-  <dLS>1.0</dLS>
- </system>
+    <lens_plane>
+      <shear>0.3</shear>
+      <sigma_smooth>0.1</sigma_smooth>
+      <!--<star_generator type="from_file" filename="nanolens_star_log.dat"/>-->
+      <star_generator type="from_random_distribution" num_stars="5000">
+        <x distribution="uniform" min="-100.0" max="100.0" />
+        <y distribution="uniform" min="-100.0" max="100.0" />
+        <mass distribution="uniform" min="0.5" max="1.2" />
+      </star_generator>
+    </lens_plane>
+  </system>
+  <method type="inverse_ray_shooting">
+    <num_rays_per_pixel>100.0</num_rays_per_pixel>
+  </method>
+  <fits_output>output.fits</fits_output>
+  <raw_output>output.raw</raw_output>
 </nanolens>

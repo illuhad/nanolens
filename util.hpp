@@ -31,7 +31,7 @@ namespace nanolens
 {
   namespace util
   {
-    typedef double scalar;
+    typedef float scalar;
     
     template<typename ScalarType, std::size_t N>
     using vector = std::array<ScalarType, N>;
@@ -312,6 +312,46 @@ namespace nanolens
       {
         return get_num_elements();
       }
+      
+      /// Grants access to the raw data buffer
+      /// @return the raw data buffer
+      T* data()
+      {
+        return data_;
+      }
+      
+      /// Grants access to the raw data buffer
+      /// @return the raw data buffer
+      const T* data() const
+      {
+        return data_;
+      }
+      
+      /// Checks if an (multi-dimensional) index is within the bounds
+      // of the multi_array
+      /// @return whether the index is within the bounds
+      /// @param position the index
+      bool is_within_bounds(const index_type* position) const
+      {
+        for(size_type i = 0; i < get_dimension(); ++i)
+          if(position[i] >= sizes_[i])
+            return false;
+        return true;
+      }
+      
+      /// Checks if an (multi-dimensional) index is within the bounds
+      // of the multi_array
+      /// @return whether the index is within the bounds
+      /// @param position the index
+      bool is_within_bounds(const std::vector<index_type>& position) const
+      {
+        for(size_type i = 0; i < get_dimension(); ++i)
+          if(position[i] >= sizes_[i])
+            return false;
+        return true;
+      }
+      
+
 
       /// Access an element of the array
       /// @param position Contains the indices of the element to look up
@@ -411,6 +451,12 @@ namespace nanolens
         assert(data_ != nullptr);
 
         size_type pos = calculate_position(position);
+        if(pos >= buffer_size_)
+        {
+          std::cout << pos << " " << buffer_size_ << " " << position[0] << " " << position[1] << std::endl;
+          std::cout << this->sizes_[0] << " " << this->sizes_[1] << std::endl;
+        }
+        
         assert(pos < buffer_size_);
         return data_[pos];
       }
@@ -428,6 +474,72 @@ namespace nanolens
         assert(pos < buffer_size_);
         return data_[pos];
       }
+      
+#ifndef WITHOUT_MPI
+      /// Reduces each element within all parallel instances of the array on the
+      /// master process by applying a user specified combination function.
+      /// @param comm The mpi communicator
+      /// @param master_rank The rank of the master process. Only this process
+      /// will have access to the reduces array.
+      /// @param combination_method The function that will be applied to combine
+      /// all elements at the same position in the parallel array instances.
+      /// It must have the signature T (const T&, const T&)
+
+      template<class Function>
+      void reduce_parallel_array(const boost::mpi::communicator& comm,
+                                 int master_rank,
+                                 Function combination_method)
+      {
+        int rank = comm.rank();
+        int nprocs = comm.size();
+
+        if(rank != master_rank)
+        {
+          // Use synchronous communication to save memory (the data tables can be quite large)
+          comm.send(master_rank, 0, *this);
+        }
+        else
+        {
+          for(int proc = 0; proc < nprocs; ++proc)
+          {
+            if(proc != master_rank)
+            {
+              util::multi_array<T> recv_data;
+              comm.recv(proc, 0, recv_data);
+
+              assert(recv_data.get_dimension() == this->get_dimension());
+              for(std::size_t dim = 0; dim < recv_data.get_dimension(); ++dim)
+                assert(recv_data.get_extent_of_dimension(dim) == this->get_extent_of_dimension(dim));
+
+              auto recv_element = recv_data.begin();
+              auto data_element = this->begin();
+
+              for(; recv_element != recv_data.end(); ++recv_element, ++data_element)
+                combination_method(*data_element, *recv_element);
+
+            }
+          }
+        }   
+      }
+
+      /// Like \c reduce_parallel_array, but makes the result available to each
+      /// process.
+      /// @param comm The mpi communicator
+      /// @param combination_method The function that will be applied to combine
+      /// all elements at the same position in the parallel array instances.
+      /// It must have the signature T (const T&, const T&)
+      template<class Function>
+      void allreduce_parallel_array(const boost::mpi::communicator& comm,
+                                 Function combination_method)
+      {
+        int master_rank = 0;
+
+        reduce_parallel_array(comm, master_rank, combination_method);
+
+        boost::mpi::broadcast(comm, *this, master_rank);
+      }
+  
+#endif
 
     private:
       /// Based on the indices of an element, calculates the position
@@ -620,7 +732,11 @@ namespace nanolens
     
   }
   
-  
+  template<typename T, std::size_t N>
+  std::vector<T> array_to_vector(const std::array<T,N>& data)
+  {
+    return std::vector<T>(data.begin(), data.end());
+  }
 
 }
 

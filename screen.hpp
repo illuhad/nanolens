@@ -33,11 +33,11 @@ public:
     _max_corner = _min_corner;
     util::add(_max_corner, _physical_size);
     
-    util::vector2 half_pixel_sizes =  _pixel_sizes;
-    util::scale(half_pixel_sizes, 0.5);
+    _half_pixel_sizes =  _pixel_sizes;
+    util::scale(_half_pixel_sizes, 0.5);
     
     _pixel_origin = _min_corner;
-    util::add(_pixel_origin, half_pixel_sizes);
+    util::add(_pixel_origin, _half_pixel_sizes);
   }
   
   const std::array<std::size_t, 2>& get_num_pixels() const
@@ -67,6 +67,8 @@ public:
     return result;
   }
   
+  const util::vector2& get_pixel_sizes() const
+  { return _pixel_sizes; }
 private:
   util::vector2 _pixel_origin;
   
@@ -77,7 +79,38 @@ private:
   std::array<std::size_t, 2> _num_pixels;
   util::vector2 _physical_size;
   util::vector2 _screen_position;
+  util::vector2 _half_pixel_sizes;
 };
+
+template<class Pixel_type>
+class screen
+{
+public:
+  typedef Pixel_type pixel_type;
+  
+  screen(const std::array<std::size_t, 2>& num_pixels,
+         const util::vector2& screen_size,
+         const util::vector2& screen_position)
+  : _screen_properties(num_pixels, screen_size, screen_position),
+    _pixels(util::multi_array<Pixel_type>(num_pixels[0], num_pixels[1]))
+  {}
+  
+  const screen_descriptor& get_properties() const
+  {
+    return _screen_properties;
+  }
+  
+  const util::multi_array<Pixel_type>& get_pixels() const
+  { return _pixels; }
+  
+  util::multi_array<Pixel_type>& get_pixels()
+  { return _pixels; }
+private:
+  screen_descriptor _screen_properties;
+  util::multi_array<Pixel_type> _pixels;
+};
+
+typedef screen<util::scalar> standard_screen;
 
 }
 

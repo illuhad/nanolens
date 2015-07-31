@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAYTRACER_HPP
-#define	RAYTRACER_HPP
+#ifndef RENDERENGINE_HPP
+#define	RENDERENGINE_HPP
 
 #include <vector>
 #include <memory>
@@ -27,7 +27,7 @@
 #include <boost/mpi.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/math/constants/constants.hpp>
-#include <fitsio.h>
+
 #include "util.hpp"
 #include "ray.hpp"
 #include "lens_plane.hpp"
@@ -36,231 +36,98 @@
 #include "image_finder.hpp"
 #include "pixel_processor.hpp"
 #include "status.hpp"
+#include "fits.hpp"
 #include "screen.hpp"
 
 namespace nanolens{
+namespace render_engines{
 
-class render_engine
+template<class System_type, class Method_type, class Screen_type>
+class renderer
 {
 public:
-  typedef std::size_t count_type;
-
+  typedef typename Method_type::settings method_settings_type;
   static constexpr int master_rank = 0;
   
-  render_engine(const std::array<std::size_t, 2>& num_pixels,
-              const util::vector2& physical_size,
-              const util::vector2& screen_position,
-              util::scalar numerical_accuracy = 1.e-7)
-  : _num_pixels(num_pixels),
-    _size(physical_size),
-    _position(screen_position),
-    _accuracy(numerical_accuracy),
-    _scaled_screen_size(physical_size),
-    _my_rank(0)
-  {}
-
-  template<class Function>
-  void run(system& sys, const boost::mpi::communicator& comm, Function status_handler)
+  renderer(const boost::mpi::communicator& comm,
+           const method_settings_type& config,
+           const Screen_type& s)
+  : _config(config), _screen(std::move(s)), _comm(comm), _my_rank(comm.rank())
   {
-    _my_rank = comm.rank();
-
-    init_screen(sys);
-
-    std::size_t npixels_x = _num_pixels[0];
-    std::size_t npixels_y = _num_pixels[1];
-
-    // Find images
-    status_handler(status_info("Initializing image finding algorithm"));
-    
-/*    
-    std::shared_ptr<image_finder<system>> backend_img_finder(
-          new image_finders::newton_crown<system, 256>(&sys, _accuracy, status_handler));
-    
-    std::shared_ptr<image_finder<system>> img_finder(
-          new image_finders::root_tracing<system>(&sys, 
-                                                  _accuracy,
-                                                   status_handler,
-                                                   backend_img_finder.get(),
-                                                   *_screen));
-    
- */
-    std::shared_ptr<image_finder<system>> img_finder(
-      new image_finders::inverse_ray_shooting<system>(&sys, status_handler, *_screen, {0.0,0.0}, {100.0, 100.0}, {10000, 10000}, comm));
-      
-    pixel_processor<magnification::by_compact_image_count> pixel_evaluator(2.0 * _accuracy);
-    
-    scheduler pixel_schedule(comm);
-    
-    status_handler(status_info("Scheduling pixel processing"));
-    // Calculate 50 pixel to get performance estimates for the scheduler
-    std::size_t benchmark_size = 1000;
-    auto scheduler_test_function = [&]()
+    _method = std::make_shared<Method_type>(_comm, _config, &_screen);
+  }
+  
+  virtual ~renderer(){}
+  
+  virtual void run(System_type& sys, status_handler_type handler) = 0;
+  
+  virtual void save_as_fits(const std::string& filename)
+  {
+    if(_my_rank == master_rank)
     {
-      std::size_t px_x = std::max(npixels_x / 2, static_cast<std::size_t>(1));
-      
-      std::size_t px_y = 0;
-      for(std::size_t i = 0; i < benchmark_size; ++i, ++px_y)
-      {
-        if(px_y >= npixels_y)
-          px_y = 0;
-        
-        util::vector2 pixel_position = _screen->get_pixel_coordinates({px_x, px_y});
-
-        pixel_evaluator.get_pixel_magnification(pixel_position,
-                                                 sys,
-                                                 *img_finder);
-      }
-    };
-    
-    pixel_schedule.run(npixels_x, scheduler_test_function);
-    
-    status_handler(status_info("Pixel processing complete", &pixel_schedule, ""));
-    
-    std::vector<util::scalar> send_data;
-    // Reserve a generous amount of space so that the vector won't have
-    // to grow often
-    send_data.reserve(0.7 * _num_pixels[0] * _num_pixels[1]);
-    
-    // Compute pixel values in parallel
-    for(std::size_t px_x = 0; px_x < npixels_x; ++px_x)
-    {
-      double progress = pixel_schedule.get_progress_at_job(px_x);
-      
-      status_handler(status_info("Processing pixels", nullptr, "", progress));
-      if(pixel_schedule.is_scheduled_to_this_process(px_x))
-      {
-        for(std::size_t px_y = 0; px_y < npixels_y; ++px_y)
-        { 
-          util::vector2 pixel_position = _screen->get_pixel_coordinates({px_x, px_y});
-
-          util::scalar magnification = pixel_evaluator.get_pixel_magnification(pixel_position,
-                                                                               sys,
-                                                                               *img_finder);
-
-          send_data.push_back(magnification);
-
-        }
-      }
-    }
-    
-    std::vector<std::vector<util::scalar>> recv_data;
-    boost::mpi::gather(comm, send_data, recv_data, master_rank);
-    
-    if(comm.rank() == master_rank)
-    {
-      _pixels = util::multi_array<util::scalar>(_num_pixels[0], _num_pixels[1]);
-      
-      std::fill(_pixels.begin(), _pixels.end(), 0.0);
-      
-      // Sort received pixel values from processes and compose image
-      std::vector<std::size_t> rank_pixel_counters(comm.size(), 0);
-
-      for(std::size_t px_x = 0; px_x < npixels_x; ++px_x)
-      {
-        int assigned_process_rank = pixel_schedule.get_assigned_process_rank(px_x);
-        assert(assigned_process_rank >= 0);
-
-        for(std::size_t px_y = 0; px_y < npixels_y; ++px_y)
-        {
-          std::size_t pixel_index [] = {px_x, px_y};
-
-          std::size_t current_pixel_count_for_rank = rank_pixel_counters[assigned_process_rank];
-
-          _pixels[pixel_index] = recv_data[assigned_process_rank][current_pixel_count_for_rank];
-
-            ++rank_pixel_counters[assigned_process_rank];
-        }
-      }
+      util::fits<typename Screen_type::pixel_type> fits_file(filename);
+      fits_file.save(_screen.get_pixels());
     }
   }
-
-
-  /// works only on the master process
-  void save_pixels_as_raw(const std::string& filename) const
+  
+  void save_as_raw(const std::string& filename)
   {
     if(_my_rank == master_rank)
     {
       std::ofstream file(filename.c_str(), 
                            std::ofstream::out|std::ofstream::binary|std::ofstream::trunc);
 
-      if(_pixels.size() != 0)
+      if(_screen.get_pixels().size() != 0)
       {
 
         if(file.is_open())
         {
-          file.write(reinterpret_cast<const char*>(_pixels.begin()), 
-                     sizeof(util::scalar) * _pixels.size());
+          file.write(reinterpret_cast<const char*>(_screen.get_pixels().begin()), 
+                     sizeof(typename Screen_type::pixel_type) * _screen.get_pixels().size());
         }
       }
     }
   }
-  
-  // works only on the master process
-  void save_pixels_as_fits(const std::string& filename) const
-  {
-    if(_my_rank == master_rank)
-    {
-      fitsfile* file;
-      int status = 0;
-
-      long naxes [] = {static_cast<long>(_num_pixels[0]), 
-                       static_cast<long>(_num_pixels[1])};
-
-      // cfitsio will only overwrite files when their names are preceded by an
-      // exclamation mark...
-      std::string fitsio_filename = "!"+filename;
-
-      if (!fits_create_file(&file, fitsio_filename.c_str(), &status))
-      {
-        if (!fits_create_img(file, DOUBLE_IMG, 2, naxes, &status))
-        {
-          long fpixel[3] = {1, 1};
-          
-          std::vector<util::scalar> row(_num_pixels[0], 0.0);
-          
-          for  (fpixel[1] = 1; fpixel[1] <= static_cast<long>(_num_pixels[1]); ++fpixel[1])
-          {
-            for(std::size_t x = 0; x < _num_pixels[0]; ++x)
-            {
-              std::size_t px_index [] = {x, static_cast<std::size_t>(fpixel[1]) - 1};
-              row[x] = _pixels[px_index];
-            }
-            fits_write_pix(file, TDOUBLE, fpixel, _num_pixels[0], row.data(), &status);
-          }
-
-          fits_close_file(file, &status);
-        }
-      }
-    }
-  }
-
-private:
-  
-  void init_screen(const system& sys)
-  {
-    util::scalar einstein_radius = sys.get_einstein_radius();
-
-    _scaled_screen_size = _size;
-    util::scale(_scaled_screen_size, einstein_radius * sys.get_distance_from_source_to_observer());
-    
-    _screen = std::shared_ptr<screen_descriptor>(new screen_descriptor(_num_pixels, 
-                                                                       _scaled_screen_size, 
-                                                                       _position));
-    
-  }
-  
-
+protected:
+  method_settings_type _config;
+  Screen_type _screen;
+  boost::mpi::communicator _comm;
+  std::shared_ptr<Method_type> _method;
   int _my_rank;
-  std::shared_ptr<screen_descriptor> _screen;
-  std::array<std::size_t, 2> _num_pixels;
-  util::scalar _accuracy;
-  util::multi_array<util::scalar> _pixels;
-  util::vector2 _size;
-  util::vector2 _pixel_size;
-  util::vector2 _scaled_screen_size;
-  util::vector2 _position;
 };
 
+template<class System_type, class Method_type, class Pixel_type>
+class standard_renderer : public renderer<System_type, Method_type, screen<Pixel_type>>
+{
+public:
+  using typename renderer<System_type, Method_type, screen<Pixel_type>>::method_settings_type;
+  
+  standard_renderer(const boost::mpi::communicator& comm,
+                    const method_settings_type& method_config,
+              const std::array<std::size_t, 2>& num_pixels,
+              const util::vector2& physical_size,
+              const util::vector2& screen_position)
+  : renderer<System_type, Method_type, screen<Pixel_type>>(comm, 
+                                       method_config, 
+                                       std::move(screen<Pixel_type>(num_pixels, physical_size, screen_position)))
+  {}
+
+  void run(System_type& sys, status_handler_type handler) 
+  {
+    this->_method->run(sys, handler);
+  }
+  
+private:
+  util::scalar _accuracy;
+};
+
+template<class System_type, class Method_type, class Screen_type>
+class system_modifying_renderer : public renderer<System_type, Method_type, Screen_type>
+{
+  // TODO
+};
+
+}
 }
 
 #endif	/* SOURCE_PLANE_HPP */

@@ -306,7 +306,7 @@ private:
                           util::grid2d<util::scalar, std::vector<util::vector2>>& root_grid,
                           bool only_count_hits)
   {
-    util::vector2 source_plane_pos = this->_system->ray_function(lens_plane_pos);
+    util::vector2 source_plane_pos = this->_system->lensing_transformation(lens_plane_pos);
 
     if(root_grid.contains_point(source_plane_pos))
     {
@@ -356,6 +356,7 @@ public:
       return lhs;
     };
     
+    std::vector<std::array<std::size_t, 2> > pixel_path;
     
     for(std::size_t px_x = 0; px_x < _screen.get_num_pixels()[0]; ++px_x)
     {
@@ -386,7 +387,10 @@ public:
           }
           
           if(caustic_crossing(current_root_list, new_root_list))
+          {
             _backend_finder->get_images(pixel_coordinates, new_root_list);
+            // Backtracing
+          }
 
           current_root_list = new_root_list;
         }

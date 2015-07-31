@@ -70,7 +70,7 @@ private:
   
   inline void init_deflection_constant() 
   {
-    _deflection_constant = 4 * util::G * _mass / util::square(util::c);
+    _deflection_constant = _mass;
   }
   
   friend class boost::serialization::access;
@@ -104,7 +104,6 @@ public:
   pseudo_star() = default;
   
   pseudo_star(const std::vector<star>& star_list)
-  : _deflection_constant(4 * util::G / util::square(util::c))
   {
     _center_of_mass = {0.0, 0.0};
     _total_mass = 0.0;
@@ -139,6 +138,10 @@ public:
         delta_x_power[1] = delta[0];
         delta_y_power[1] = delta[1];
 
+        // For the multipole expansion of the deflection angle,
+        // see Wambsganß, J.: Gravitational microlensing., 
+        // Max-Planck-Institut für Physik und Astrophysik, Garching (Germany). Inst. für Astrophysik, 
+        // Oct 1990
         for(std::size_t i = 2; i < 7; ++i)
         {
           delta_x_power[i] = delta[0] * delta_x_power[i - 1];
@@ -216,7 +219,7 @@ public:
 
     // monopole
     result = R;
-    util::scale(result, _total_mass / squared_norm);
+    util::scale(result, -_total_mass / squared_norm);
 
     std::array<util::vector2, 8> r_power;
     r_power[0] = {1., 1.};
@@ -283,13 +286,12 @@ public:
       util::scalar m1c0 = _multipole_moments[i][1] * multipole_evaluation_coefficients[i][0];
       util::scalar m0c1 = _multipole_moments[i][0] * multipole_evaluation_coefficients[i][1];
       
-      result[0] += (m0c0 + m1c1) / r_power2i_plus2;
-      result[1] += (m0c1 - m1c0) / r_power2i_plus2;
+      result[0] -= (m0c0 + m1c1) / r_power2i_plus2;
+      result[1] -= (m0c1 - m1c0) / r_power2i_plus2;
 
       r_power2i_plus2 *= squared_norm;
     }
     
-    util::scale(result, -_deflection_constant);
   }
   
   const util::vector2& center_of_mass() const
@@ -299,7 +301,7 @@ public:
 private:
   util::scalar _total_mass;
   util::vector2 _center_of_mass;
-  util::scalar _deflection_constant;
+
   std::array<util::vector2, Multipole_order - 1> _multipole_moments;
 
 };

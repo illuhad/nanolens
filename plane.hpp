@@ -38,11 +38,6 @@ namespace nanolens
       return _distance_to_prev;
     }
     
-    virtual void get_deflection_angle(const util::vector2& position, 
-                                      util::vector2& result) const
-    {
-      util::assign(result, 0.0);
-    }
   protected:
     util::scalar _distance_to_prev;
   };

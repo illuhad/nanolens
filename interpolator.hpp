@@ -66,8 +66,11 @@ public:
       for(std::size_t j = 0; j < 4; ++j)
       {
         vector_type position = _min_extent;
-        position[0] += (static_cast<int>(i) - 1) * _area_size[0];
-        position[1] += (static_cast<int>(j) - 1) * _area_size[1];
+        //position[0] += (static_cast<int>(i) - 1) * _area_size[0];
+        //position[1] += (static_cast<int>(j) - 1) * _area_size[1];
+        
+        position[0] += static_cast<int>(i) * _area_size[0] / 3.0;
+        position[1] += static_cast<int>(j) * _area_size[1] / 3.0;
         fn(position, eval_point_id);
         
         ++eval_point_id;
@@ -84,8 +87,11 @@ public:
       for(std::size_t j = 0; j < 4; ++j)
       {
         vector_type position = _min_extent;
-        position[0] += (static_cast<int>(i) - 1) * _area_size[0];
-        position[1] += (static_cast<int>(j) - 1) * _area_size[1];
+        //position[0] += (static_cast<int>(i) - 1) * _area_size[0];
+        //position[1] += (static_cast<int>(j) - 1) * _area_size[1];
+        
+        position[0] += static_cast<int>(i) * _area_size[0] / 3.0;
+        position[1] += static_cast<int>(j) * _area_size[1] / 3.0;
         p[i][j] = fn(position);
       }
 
@@ -133,8 +139,17 @@ private:
   
   inline T interpolate_at_relative(const vector_type& relative_position) const
   {
-    Coordinate_type x = relative_position[0];
-    Coordinate_type y = relative_position[1];
+    vector_type transformed_rel_pos;
+    
+    //Transform coordinates from relative position on the entire sampling area
+    //to relative position on the central square of evaluation points
+    //(neccessary due to the calculation formulas of the interpolation matrix entries)
+    
+    for(std::size_t i = 0; i < transformed_rel_pos.size(); ++i)
+      transformed_rel_pos[i] = relative_position[i] * 3.0 - 1.0;
+    
+    Coordinate_type x = transformed_rel_pos[0];
+    Coordinate_type y = transformed_rel_pos[1];
 
     std::array<Coordinate_type, 4> x_powers = {1., x, 0., 0.};
     std::array<Coordinate_type, 4> y_powers = {1., y, 0., 0.};

@@ -30,6 +30,7 @@
 namespace nanolens
 {
 
+  //template<class Deflection_angle_method>
   class lens_plane : public plane
   {
   public:
@@ -43,58 +44,72 @@ namespace nanolens
     {}
     
     explicit lens_plane(const std::vector<star>& deflectors,
-                        util::scalar distance_to_prev)
+                        util::scalar distance_to_prev,
+                        util::scalar shear = 0.,
+                        util::scalar sigma_smooth = 0.)
     : _deflectors(deflectors), plane(distance_to_prev), 
-      //_grid(deflectors, {-150.0, -150.0}, {150.0, 150.0}, {64, 64}, 1.e-1)
-     //_grid(deflectors, 1, {-150.0, -150.0}, {150.0, 150.0}, {200, 200}, {2,2})
-    _tree(deflectors, 0.6)
+    _tree(deflectors, 0.6),
+    _shear(shear),
+    _sigma_smooth(sigma_smooth)
     {
-      _distance_to_nearest_star.reserve(_deflectors.size());
+      // Get mean mass
+      util::scalar mean_mass = 0.0;
       
-      for(std::size_t i = 0; i < _deflectors.size(); ++i)
+      for(const star& s : deflectors)
+        mean_mass += s.get_mass();
+      mean_mass /= deflectors.size();
+
+      // Estimate sigma*
+      // First calculate distribution center
+      util::vector2 distribution_center = {0.0,0.0};
+      for(const star& s : deflectors)
+        util::add(distribution_center, s.get_position());
+      util::scale(distribution_center, 1.0 / deflectors.size());
+      
+      // Estimate average radius
+      util::scalar avg_radius_squared = 0.0;
+      for(const star& s : deflectors)
       {
-        std::size_t nearest_star_idx = get_nearest_star_index(_deflectors[i].get_position());
-        if(nearest_star_idx < _deflectors.size())
-        {
-          util::vector2 diff = _deflectors[i].get_position();
-          util::sub(diff, _deflectors[nearest_star_idx].get_position());
-          _distance_to_nearest_star.push_back(util::dot(diff, diff));
-        }
-        else
-          _distance_to_nearest_star.push_back(std::numeric_limits<util::scalar>::max());
+        util::vector2 R = s.get_position();
+        util::sub(R, distribution_center);
+        avg_radius_squared += util::dot(R,R);
       }
+      avg_radius_squared /= deflectors.size();
       
-      util::scalar min = std::numeric_limits<util::scalar>::max();
-      for(util::scalar distance_square : _distance_to_nearest_star)
+      util::scalar N_stars = 0.0;
+      // Count stars within average radius
+      for(const star& s: deflectors)
       {
-        if(distance_square < min)
-          min = distance_square;
+        util::vector2 R = s.get_position();
+        util::sub(R, distribution_center);
+        if(util::dot(R,R) <= avg_radius_squared)
+          ++N_stars;
       }
+      //util::scalar area_radius_squared = 
+      //  avg_radius_squared / util::square(calculate_einstein_radius(1.0,1.0,2.0));
+      _sigma_star = N_stars * mean_mass / avg_radius_squared;
       
-      _min_distance = std::sqrt(min);
+      
+      this->_smooth_matter_fraction = _sigma_smooth / (_sigma_star + _sigma_smooth);
+      
+      _shear_and_smooth_matter_x = 1.0 - _shear - _sigma_smooth;
+      _shear_and_smooth_matter_y = 1.0 + _shear - _sigma_smooth;
     }
+    
     
     inline void get_deflection_angle(const util::vector2& position, util::vector2& result) const
     {
-//      util::vector2 deflection;
-//      result = {0.0, 0.0};
-//      
+      result = {0.0, 0.0};
+      
 //      for(std::size_t i = 0; i < _deflectors.size(); ++i)
 //      {
+//        util::vector2 deflection;
 //        _deflectors[i].calculate_deflection_angle(position, deflection);
 //        util::add(result, deflection);
 //      }
       result = _tree.get_deflection(position);
     }
-    
-    // Einstein radius for object of mass 1
-    static util::scalar calculate_einstein_radius(util::scalar d_ls,
-                                           util::scalar d_l,
-                                           util::scalar d_s)
-    {
-      return 2.0 / util::c * std::sqrt(util::G * d_ls / (d_l * d_s));
-    }
-    
+
     // Estimate for the radius of the mass distribution in the plane
     util::scalar get_radius_estimate() const
     {
@@ -110,14 +125,24 @@ namespace nanolens
       }
       
       if(result == 0.0)
-        return 2.0;
+        return 1.0;
       
       return result;
     }
-    
-    util::scalar get_min_deflector_distance() const
+
+    // Transform from a position in the lens plane to a position in the source plane
+    // at unit distance
+    inline util::vector2 lensing_transformation(const util::vector2& lens_plane_pos) const
     {
-      return _min_distance;
+      util::vector2 out = lens_plane_pos;
+      out[0] *= _shear_and_smooth_matter_x;
+      out[1] *= _shear_and_smooth_matter_y;
+      
+      util::vector2 deflection;
+      get_deflection_angle(lens_plane_pos, deflection);
+      util::add(out, deflection);
+      
+      return out;
     }
     
     inline star_iterator begin_stars()
@@ -167,32 +192,6 @@ namespace nanolens
       
     }
     
-    util::vector2 get_pseudo_deflection(const util::vector2& position,
-                                               const util::scalar max_pull,
-                                               const util::scalar cutoff) const
-    {
-      util::vector2 shift = {0.0,0.0};
-      
-      std::size_t nearest_star_idx = get_nearest_star_index(position);
-      if(nearest_star_idx < _deflectors.size())
-      {
-        util::vector2 diff = _deflectors[nearest_star_idx].get_position();
-        util::sub(diff, position);
-        
-        util::scalar next_nearest_star_distance =
-                _distance_to_nearest_star[nearest_star_idx];
-        
-        util::scalar dist = util::dot(diff, diff);
-        util::scalar decay = 10.0 * 0.5 * next_nearest_star_distance / util::square(cutoff);
-        
-        util::scale(diff,
-                  std::min(max_pull, util::square(cutoff) / (decay * dist)));
-
-        util::add(shift, diff);
-      }
-      return shift;
-    }
-    
     star& get_star_by_index(std::size_t idx)
     { return _deflectors[idx]; }
     
@@ -202,10 +201,40 @@ namespace nanolens
     std::size_t get_num_stars() const
     { return _deflectors.size(); }
     
-    util::scalar get_distance_to_nearest_star_for_star(std::size_t star_idx) const
+    util::scalar get_shear() const
     {
-      assert(star_idx < get_num_stars());
-      return _distance_to_nearest_star[star_idx];
+      return _shear;
+    }
+    
+    util::scalar get_smooth_matter_fraction() const
+    {
+      return _smooth_matter_fraction;
+    }
+    
+    util::scalar get_sigma_smooth() const
+    {
+      return _sigma_smooth;
+    }
+    
+    util::scalar get_sigma_star() const
+    {
+      return _sigma_star;
+    }
+    
+    util::scalar get_mean_surface_density() const
+    {
+      return _sigma_smooth + _sigma_star;
+    }
+    
+    void obtain_properties_set(std::map<std::string, util::scalar>& out) const
+    {
+      out.clear();
+      
+      out["N*"] = this->get_num_stars();
+      out["sigma* (estimated)"] = this->get_sigma_star();
+      out["sigma smooth"] = this->get_sigma_smooth();
+      out["sigma total"] = this->get_mean_surface_density();
+      out["shear"] = this->get_shear();
     }
   private:
     std::vector<star>::const_iterator get_nearest_star(const util::vector2& position) const
@@ -253,10 +282,15 @@ namespace nanolens
     }
     
     std::vector<star> _deflectors;
-    std::vector<util::scalar> _distance_to_nearest_star;
+
+    util::scalar _shear;
+    util::scalar _smooth_matter_fraction;
     
-    util::scalar _min_distance;
+    util::scalar _sigma_star;
+    util::scalar _sigma_smooth;
     
+    util::scalar _shear_and_smooth_matter_x;
+    util::scalar _shear_and_smooth_matter_y;
     //deflection_grid _grid;
     barnes_hut_tree _tree;
     //nested_interpolation_grid _grid;

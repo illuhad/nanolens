@@ -82,6 +82,8 @@ private:
   double _progress;
 };
 
+typedef std::function<void(const status_info&)> status_handler_type;
+
 }
 
 #endif	/* STATUS_HPP */

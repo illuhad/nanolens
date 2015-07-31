@@ -17,36 +17,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OBSERVER_PLANE_HPP
-#define	OBSERVER_PLANE_HPP
+#ifndef METHOD_HPP
+#define	METHOD_HPP
 
-#include "util.hpp"
-#include "plane.hpp"
+#include "screen.hpp"
+#include "status.hpp"
+#include "input.hpp"
 
-namespace nanolens
+namespace nanolens {
+
+template<class System_type, class Settings_type, class Screen_type>
+class method
 {
-  class observer_plane : public plane
+public:
+  
+  method(const boost::mpi::communicator& comm,
+         const Settings_type config,
+         Screen_type* s,
+         int master_rank = 0)
+  : _screen(s), _comm(comm), _config(config)
   {
-  public:
-    explicit observer_plane(util::scalar distance_to_prev)
-    : _pos({0.0, 0.0}), plane(distance_to_prev)
-    {}
+    assert(s != nullptr);
     
+    boost::mpi::broadcast(_comm, _config, master_rank);
+  }
+  
+  virtual void run(const System_type& sys, status_handler_type handler) = 0;
+  
+  virtual ~method()
+  {}
+protected:
+  Screen_type* _screen;
+  boost::mpi::communicator _comm;
+  Settings_type _config;
+};
 
-    template<typename RayBundleType>
-    bool is_hit(const RayBundleType& bundle) const
-    {
-      return bundle.covered_area_contains_point(_pos);
-    }
-    
-    const util::vector2& get_observer_position() const
-    {
-      return _pos;
-    }
-  private:
-    util::vector2 _pos;
-  };
+
+
+
 }
 
-#endif	/* OBSERVER_PLANE_HPP */
+#endif	/* METHOD_HPP */
 

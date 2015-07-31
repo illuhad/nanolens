@@ -36,31 +36,21 @@ public:
   static const std::size_t num_planes = 2;
 
   explicit system(const std::vector<star>& deflectors,
+                  util::scalar shear,
+                  util::scalar sigma_smooth,
                   const std::array<util::scalar, num_planes>& plane_distances = {1.0, 1.0})
-  : _observer(new observer_plane({0.0, 0.0}, plane_distances[0]))
+  : _observer(new observer_plane(plane_distances[0]))
   {
-    init_einstein_radius(plane_distances[1],
-                     plane_distances[0],
-                     plane_distances[0] + plane_distances[1]);  
-      
+
     
-    util::scalar lens_plane_einstein_radius = get_einstein_radius() 
-        * _observer->distance_to_previous_plane();
-    
-    std::vector<star> scaled_deflectors = deflectors;
-    
-    for(star& s : scaled_deflectors)
-    {
-      util::vector2 new_pos = s.get_position();
-      
-      util::scale(new_pos, lens_plane_einstein_radius);
-      
-      s = star(new_pos, s.get_mass());
-    }
-    
-    _deflector = std::shared_ptr<lens_plane>(new lens_plane(scaled_deflectors, plane_distances[1]));
+    _deflector = std::shared_ptr<lens_plane>(new lens_plane(deflectors, 
+                                                            plane_distances[1], 
+                                                            shear, 
+                                                            sigma_smooth));
     
     init();
+    
+    
     
   }
 
@@ -76,6 +66,7 @@ public:
     return _deflector->distance_to_previous_plane()
             + _observer->distance_to_previous_plane();
   }
+  
 
   template<typename RayType>
   inline void traverse(RayType& ray) const
@@ -84,59 +75,24 @@ public:
     ray.propagate(*_observer);
   }
 
-  inline util::scalar get_einstein_radius() const
-  {
-    return _einstein_radius;
-  }
-
   system get_empty_system() const
   {
-    return system(std::vector<star>(), 
+    return system(std::vector<star>(), 0.0, 0.0,
       {_deflector->distance_to_previous_plane(),_observer->distance_to_previous_plane()});
   }
   
-  /// Obtain the total deflection angle
-  inline util::vector2 alpha(const util::vector2& lens_plane_position) const
+  inline util::vector2 lensing_transformation(const util::vector2& lens_plane_pos) const
   {
-    util::vector2 out;
-    _deflector->get_deflection_angle(lens_plane_position, out);
-    return out;
-  }
-  
-  inline util::vector2 ray_function(const util::vector2& lens_plane_pos) const
-  {
-    // ray equation:
-    // 0 = (1+dL/dLS)ksi + alpha(ksi)*dL - pos * dL/dLS - pos_observer
-    // ray function:
-    // pos = (1.0 + dLS/dL)ksi + alpha(ksi) * d_LS - p_obs * d_LS/d_L
+    util::vector2 source_plane_pos = _deflector->lensing_transformation(lens_plane_pos);
+    util::scale(source_plane_pos, _deflector->distance_to_previous_plane());
     
-    util::vector2 out = lens_plane_pos;
-    
-    util::scale(out, 1.0 + this->_dLS_over_dL);
-    
-    util::vector2 deflection = alpha(lens_plane_pos);
-    util::scale(deflection, this->get_deflector().distance_to_previous_plane());
-    
-    util::add(out, deflection);
-    
-    util::vector2 obs_position_term = _observer->get_observer_position();
-    util::scale(obs_position_term, this->_dLS_over_dL);    
-    util::sub(out, obs_position_term);
-    
-    return out;
+    return source_plane_pos;
   }
   
 private:
-  void init_einstein_radius(util::scalar d_ls, util::scalar d_l, util::scalar d_s)
-  {
-    _einstein_radius = lens_plane::calculate_einstein_radius(d_ls, d_l, d_s);
-  }
 
   void init()
   {
-    init_einstein_radius(_deflector->distance_to_previous_plane(),
-            _observer->distance_to_previous_plane(),
-            get_distance_from_source_to_observer());
     
         
     _dL_over_dLS = _observer->distance_to_previous_plane() /
@@ -146,12 +102,12 @@ private:
                    _observer->distance_to_previous_plane();
   }
   
+  
   util::scalar _dL_over_dLS;
   util::scalar _dLS_over_dL;
   std::shared_ptr<observer_plane> _observer;
   std::shared_ptr<lens_plane> _deflector;
 
-  util::scalar _einstein_radius;
 };
 
 }

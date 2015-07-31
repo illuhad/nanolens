@@ -35,7 +35,6 @@ namespace nanolens{
 
 class configuration
 {
-  
 public:
   class random_distribution_descriptor
   {
@@ -91,6 +90,11 @@ public:
     }
   };
   
+  enum method_type
+  {
+    INVERSE_RAY_SHOOTING = 0
+  };
+  
   configuration(const boost::mpi::communicator& comm, int master_rank)
   : _comm(comm), _master_rank(master_rank) {}
   
@@ -102,11 +106,15 @@ public:
 
       _screen_pos = get_vector("nanolens.system.source_plane.position", util::vector2({0.0, 0.0}));
       _screen_size = get_vector("nanolens.system.source_plane.physical_size", util::vector2({10.0, 10.0}));
-      _observer_pos = get_vector("nanolens.system.observer_plane.position", util::vector2({0.0, 0.0}));
       _dL = get<util::scalar>("nanolens.system.dL", 1.0);
       _dLS = get<util::scalar>("nanolens.system.dLS", 1.0);
       
       _resolution = get_vector("nanolens.system.source_plane.num_pixels", std::array<std::size_t, 2>({100, 100}));
+      
+      _fits_output = get<std::string>("nanolens.fits_output", std::string());
+      _raw_output = get<std::string>("nanolens.raw_output", std::string());
+      
+      load_method();
       
       BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
               _tree.get_child("nanolens.system.lens_plane"))
@@ -137,37 +145,12 @@ public:
         catch(...)
         {}
       }
+      
+      _shear = get<util::scalar>("nanolens.system.lens_plane.shear", 0.0);
+      _sigma_smooth = get<util::scalar>("nanolens.system.lens_plane.sigma_smooth", 0.0);
     }
     boost::mpi::broadcast(_comm, *this, _master_rank);
   }
-  
-  /*
-  void load_from_command_line_args(int argc, char** argv)
-  {
-    boost::program_options::options_description desc("Allowed options");
-    desc.add_options()
-        ("help", "produce help message")
-        ("dL", boost::program_options::value<util::scalar>(), "distance between observer and lens plane")
-        ("dLS", boost::program_options::value<util::scalar>(), "distance between lens and source plane")
-    ;
-
-    po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);    
-
-    if (vm.count("help")) {
-        cout << desc << "\n";
-        return 1;
-    }
-
-    if (vm.count("compression")) {
-        cout << "Compression level was set to " 
-     << vm["compression"].as<int>() << ".\n";
-    } else {
-        cout << "Compression level was not set.\n";
-    }
-  }
-   * */
   
   const std::array<std::size_t, 2>& get_resolution() const
   { return _resolution; }
@@ -177,9 +160,6 @@ public:
   
   const util::vector2& get_physical_screen_size() const
   { return _screen_size; }
-  
-  const util::vector2& get_observer_pos() const
-  { return _observer_pos; }
   
   util::scalar get_dLS() const
   { return _dLS; }
@@ -194,10 +174,53 @@ public:
   get_random_star_generators() const
   { return _random_star_generators; }
   
+  util::scalar get_shear() const
+  { return _shear; }
   
-private:
+  util::scalar get_sigma_smooth() const
+  { return _sigma_smooth; }
+  
+  const std::string& get_fits_output() const
+  { return _fits_output; }
+  
+  const std::string& get_raw_output() const
+  { return _raw_output; }
+  
   template<class T>
-  T get(const std::string& identifier, const T& default_parameter)
+  T get_method_property(const std::string& identifier, const T& default_value) const
+  {
+    if(_comm.rank() == _master_rank)
+      return get("nanolens.method."+identifier, default_value);
+    return default_value;
+  }
+  
+  template<class T>
+  std::array<T,2> get_method_vector2_property(const std::string& id, const std::array<T,2>& default_val) const
+  {
+    if(_comm.rank() == _master_rank)
+      return get_vector("nanolens.method."+id, default_val);
+    return default_val;
+  }
+  
+  method_type get_method_type() const
+  {
+    return _method;
+  }
+private:
+  void load_method()
+  {
+    std::string method_string = get<std::string>(
+      "nanolens.method.<xmlattr>.type",
+      "inverse_ray_shooting");
+    
+    if(method_string == "inverse_ray_shooting")
+      _method = INVERSE_RAY_SHOOTING;
+    else
+      _method = INVERSE_RAY_SHOOTING;
+  }
+  
+  template<class T>
+  T get(const std::string& identifier, const T& default_parameter) const
   {
     try
     {
@@ -210,7 +233,7 @@ private:
   }
   
   template<class T>
-  std::array<T,2> get_vector(const std::string& id, const std::array<T,2>& default_val)
+  std::array<T,2> get_vector(const std::string& id, const std::array<T,2>& default_val) const
   {
     std::array<T,2> result;
     result[0] = get<T>(id + ".<xmlattr>.x", default_val[0]);
@@ -268,11 +291,18 @@ private:
   std::array<std::size_t, 2> _resolution;
   util::vector2 _screen_pos;
   util::vector2 _screen_size;
-  util::vector2 _observer_pos;
+
   util::scalar _dL;
   util::scalar _dLS;
+  util::scalar _shear;
+  util::scalar _sigma_smooth;
   boost::mpi::communicator _comm;
   int _master_rank;
+  
+  std::string _fits_output;
+  std::string _raw_output;
+  
+  method_type _method;
   
   
   friend class boost::serialization::access;
@@ -283,11 +313,15 @@ private:
     ar & _resolution;
     ar & _screen_pos;
     ar & _screen_size;
-    ar & _observer_pos;
     ar & _dL;
     ar & _dLS;
+    ar & _shear;
+    ar & _sigma_smooth;
     ar & _star_files;
     ar & _random_star_generators;
+    ar & _fits_output;
+    ar & _raw_output;
+    ar & _method;
   }
 };
 
