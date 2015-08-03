@@ -40,14 +40,12 @@ namespace nanolens
     typedef std::vector<star>::const_iterator const_star_iterator;
     
     lens_plane()
-    : plane(1.0)
     {}
     
     explicit lens_plane(const std::vector<star>& deflectors,
-                        util::scalar distance_to_prev,
                         util::scalar shear = 0.,
                         util::scalar sigma_smooth = 0.)
-    : _deflectors(deflectors), plane(distance_to_prev), 
+    : _deflectors(deflectors), 
     _tree(deflectors, 0.6),
     _shear(shear),
     _sigma_smooth(sigma_smooth)
@@ -141,6 +139,18 @@ namespace nanolens
       util::vector2 deflection;
       get_deflection_angle(lens_plane_pos, deflection);
       util::add(out, deflection);
+      
+      return out;
+    }
+    
+    inline util::vector2 inverse_lensing_transformation(const util::vector2& lens_plane_pos,
+                                                    const util::vector2& source_plane_pos) const
+    {
+      util::vector2 out = source_plane_pos;
+      
+      util::vector2 lensing_transformation_result = lensing_transformation(lens_plane_pos);
+      
+      util::sub(out, lensing_transformation_result);
       
       return out;
     }

@@ -28,17 +28,11 @@ namespace nanolens
   class observer_plane : public plane
   {
   public:
-    explicit observer_plane(util::scalar distance_to_prev)
-    : _pos({0.0, 0.0}), plane(distance_to_prev)
+    explicit observer_plane()
+    : _pos({0.0, 0.0})
     {}
     
 
-    template<typename RayBundleType>
-    bool is_hit(const RayBundleType& bundle) const
-    {
-      return bundle.covered_area_contains_point(_pos);
-    }
-    
     const util::vector2& get_observer_position() const
     {
       return _pos;

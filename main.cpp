@@ -29,12 +29,6 @@
 
 
 
-template<class Method_type, class System_type>
-void run_standard_method(System_type& sys, const nanolens::configuration& config)
-{
-  
-}
-
 
 int main(int argc, char** argv) 
 { 
@@ -120,10 +114,11 @@ int main(int argc, char** argv)
   
   star_gen.save_generated_stars("nanolens_star_log.dat");
 
-  nanolens::system lensing_system(stars, 
-                                  config.get_shear(), 
-                                  config.get_sigma_smooth(),
-                                  {config.get_dL(), config.get_dLS()});
+  std::shared_ptr<nanolens::lens_plane> deflector(new nanolens::lens_plane(stars,
+                                                                           config.get_shear(),
+                                                                           config.get_sigma_smooth()));
+  
+  nanolens::system<nanolens::lens_plane> lensing_system(deflector);
   
   master_cout << "Lensing system initialized:\n";
   
@@ -138,7 +133,7 @@ int main(int argc, char** argv)
   nanolens::util::timer timer;
   timer.start();
 
-  nanolens::standard_launcher<nanolens::system> launcher;
+  nanolens::standard_launcher<nanolens::system<nanolens::lens_plane>> launcher;
   launcher.run_configured_method(world, config, lensing_system);
 
   double time = timer.stop();

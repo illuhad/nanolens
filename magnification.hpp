@@ -23,7 +23,6 @@
 #include "lensing_jacobian.hpp"
 #include "util.hpp"
 #include "geometry.hpp"
-#include "ray.hpp"
 
 namespace nanolens{
 
@@ -69,11 +68,16 @@ public:
     util::vector2 angle = image_position;
     util::sub(angle, pixel_position);
     util::scale(angle, 1.0 / sys.get_deflector().distance_to_previous_plane());
-      
-    ray_bundle<N_polygon_vertices> bundle(_template_shape, pixel_position, angle);
-    sys.traverse(bundle);
-      
-    return bundle.get_magnification();
+
+    geometry::equilateral_polygon<N_polygon_vertices> polygon = _template_shape;
+    polygon.shift_coordinates(pixel_position);
+    
+    geometry::polygon<N_polygon_vertices> transformed_polygon;
+    
+    for(std::size_t i = 0; i < polygon.num_vertices(); ++i)
+      transformed_polygon[i] = sys.inverse_lensing_transformation(polygon[i], pixel_position);
+        
+    return polygon.area() / transformed_polygon.area();
   }  
     
 private:
@@ -93,22 +97,6 @@ public:
                                  const util::vector2& image_position) const
   {
     return 1.0;
-  }
-};
-
-// required to evaluate result of the inverse ray shooting image finder, if
-// the only_count_hits option has been enabled
-class by_compact_image_count
-{
-public:
-  by_compact_image_count(util::scalar dummy_accuracy_argument) {}
-  
-  template <class SystemType>
-  util::scalar get_magnification(const SystemType& sys, 
-                                 const util::vector2& pixel_position,
-                                 const util::vector2& image_position) const
-  {
-    return image_position[0];
   }
 };
 

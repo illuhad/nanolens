@@ -27,19 +27,10 @@ namespace nanolens
   class plane
   {
   public:
-    explicit plane(util::scalar distance)
-    : _distance_to_prev(distance)
-    {}
     
     virtual ~plane(){}
     
-    inline util::scalar distance_to_previous_plane() const
-    {
-      return _distance_to_prev;
-    }
-    
   protected:
-    util::scalar _distance_to_prev;
   };
 }
 

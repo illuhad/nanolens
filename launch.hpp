@@ -39,7 +39,7 @@ public:
 
     nanolens::render_engines::standard_renderer
     <
-      nanolens::system, 
+      System_type, 
       Method_type,
       util::scalar
     > engine(comm,

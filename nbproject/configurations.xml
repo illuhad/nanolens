@@ -21,7 +21,6 @@
       <itemPath>observer_plane.hpp</itemPath>
       <itemPath>pixel_processor.hpp</itemPath>
       <itemPath>plane.hpp</itemPath>
-      <itemPath>ray.hpp</itemPath>
       <itemPath>render_engine.hpp</itemPath>
       <itemPath>scheduler.hpp</itemPath>
       <itemPath>screen.hpp</itemPath>
@@ -115,8 +114,6 @@
       </item>
       <item path="plane.hpp" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="ray.hpp" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="render_engine.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="scheduler.hpp" ex="false" tool="3" flavor2="0">
@@ -207,8 +204,6 @@
       <item path="pixel_processor.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="plane.hpp" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="ray.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="render_engine.hpp" ex="false" tool="3" flavor2="0">
       </item>

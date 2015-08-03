@@ -29,7 +29,6 @@
 #include <boost/math/constants/constants.hpp>
 
 #include "util.hpp"
-#include "ray.hpp"
 #include "lens_plane.hpp"
 #include "observer_plane.hpp"
 #include "system.hpp"

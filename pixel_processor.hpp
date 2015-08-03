@@ -24,7 +24,6 @@
 #include <vector>
 #include "util.hpp"
 #include "image_finder.hpp"
-#include "ray.hpp"
 #include "numeric.hpp"
 #include "magnification.hpp"
 
