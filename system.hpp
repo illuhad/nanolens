@@ -62,7 +62,7 @@ public:
 private:
 
   std::shared_ptr<observer_plane> _observer;
-  std::shared_ptr<lens_plane> _deflector;
+  std::shared_ptr<Lens_plane_type> _deflector;
 
 };
 

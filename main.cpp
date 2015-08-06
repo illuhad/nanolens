@@ -71,7 +71,7 @@ int main(int argc, char** argv)
                                                                                 
 
   
-  master_cout << "nanolens version 2.9e-19 (beta) launching..." << std::endl;
+  master_cout << "nanolens version 2.95e-19 launching..." << std::endl;
   master_cout << "Using " << world.size() << " process(es).\n";
   
   std::vector<nanolens::star> stars;
@@ -81,66 +81,9 @@ int main(int argc, char** argv)
   nanolens::configuration config(world, 0);
   config.load_from_file("nanolens.xml");
   
-  // Generate stars
-  nanolens::star_generator star_gen(world);
+  nanolens::standard_launcher launcher(world);
   
-  for(const std::string& filename : config.get_star_files())
-  {
-    master_cout << "Star genesis: Processing file: " << filename << std::endl;
-    std::vector<nanolens::star> generated_stars;
-    star_gen.from_file(filename, stars); 
-    
-    for(const nanolens::star& s : generated_stars)
-      stars.push_back(s);
-  }
-  
-  for(const nanolens::configuration::random_star_generator_descriptor& descr : 
-      config.get_random_star_generators())
-  {
-    master_cout << "Star genesis: Generating " << descr.num_stars << " random stars...\n";
-    
-    std::vector<nanolens::star> generated_stars;
-    
-    star_gen.from_random_distribution(descr.num_stars,
-                                      generated_stars,
-                                      descr.x_distribution,
-                                      descr.y_distribution,
-                                      descr.mass_distribution);
-    
-    for(const nanolens::star& s : generated_stars)
-      stars.push_back(s);
-  }
-  master_cout << "Star genesis: Created " << stars.size() << " stars." << std::endl;
-  
-  star_gen.save_generated_stars("nanolens_star_log.dat");
-
-  std::shared_ptr<nanolens::lens_plane> deflector(new nanolens::lens_plane(stars,
-                                                                           config.get_shear(),
-                                                                           config.get_sigma_smooth()));
-  
-  nanolens::system<nanolens::lens_plane> lensing_system(deflector);
-  
-  master_cout << "Lensing system initialized:\n";
-  
-  std::map<std::string, nanolens::util::scalar> lens_plane_statistics;
-  lensing_system.get_deflector().obtain_properties_set(lens_plane_statistics);
-  
-  for(const auto& element : lens_plane_statistics)
-    master_cout << "  " << element.first << " = " << element.second << std::endl;
-  
-  master_cout << "Starting computation..." << std::endl;
-
-  nanolens::util::timer timer;
-  timer.start();
-
-  nanolens::standard_launcher<nanolens::system<nanolens::lens_plane>> launcher;
-  launcher.run_configured_method(world, config, lensing_system);
-
-  double time = timer.stop();
-  
-  master_cout << std::endl;
-  master_cout << "Total elapsed time: " << time << "s\n";
-  world.barrier();
+  launcher.execute_configuration(config, master_cout);
   
   
   return 0;

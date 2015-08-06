@@ -127,14 +127,6 @@ public:
   util::scalar get_n_rays_per_px() const
   { return _n_rays_per_px; }
   
-private:
-  friend class boost::serialization::access;
-
-  template<class Archive>
-  void serialize(Archive & ar, const unsigned int version)
-  {
-    ar & _n_rays_per_px;
-  }
 };
 
 template<class System_type>
@@ -235,7 +227,7 @@ public:
       ray_position[0] += step_sizes[0];
     }
     
-    handler(status_info("Waiting for processes"));
+    handler(status_info("Waiting for processes...\n"));
     
     auto add =  [](util::scalar& a, util::scalar b){ a += b;};
     this->_screen->get_pixels().reduce_parallel_array(this->_comm, 0, add);

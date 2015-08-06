@@ -38,8 +38,6 @@ public:
   : _screen(s), _comm(comm), _config(config)
   {
     assert(s != nullptr);
-    
-    boost::mpi::broadcast(_comm, _config, master_rank);
   }
   
   virtual void run(const System_type& sys, status_handler_type handler) = 0;

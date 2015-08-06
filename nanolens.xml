@@ -5,7 +5,10 @@
       <physical_size x="44.45" y="25.0"/>
       <num_pixels x="2880" y="1620" />
     </source_plane>
-    <lens_plane>
+    <lens_plane type="microlensing_lens_plane">
+      <deflection_engine type="tree">
+        <opening_angle>0.6</opening_angle>
+      </deflection_engine>
       <shear>0.3</shear>
       <sigma_smooth>0.1</sigma_smooth>
       <!--<star_generator type="from_file" filename="nanolens_star_log.dat"/>-->

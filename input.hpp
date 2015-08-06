@@ -95,6 +95,17 @@ public:
     INVERSE_RAY_SHOOTING = 0
   };
   
+  enum lens_plane_type
+  {
+    MICROLENSING = 0
+  };
+  
+  enum deflection_engine_type
+  {
+    EXACT = 0,
+    TREE
+  };
+  
   configuration(const boost::mpi::communicator& comm, int master_rank)
   : _comm(comm), _master_rank(master_rank) {}
   
@@ -115,6 +126,7 @@ public:
       _raw_output = get<std::string>("nanolens.raw_output", std::string());
       
       load_method();
+      load_lens_plane_type();
       
       BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
               _tree.get_child("nanolens.system.lens_plane"))
@@ -188,23 +200,77 @@ public:
   
   template<class T>
   T get_method_property(const std::string& identifier, const T& default_value) const
+  { return get_namespace_property("method", identifier, default_value); }
+  
+  template<class T>
+  std::array<T,2> get_method_vector2_property(const std::string& id, 
+                                              const std::array<T,2>& default_val) const
+  { return get_namespace_vector2_property("method", id, default_val); }
+  
+  template<class T>
+  T get_lens_plane_property(const std::string& identifier, const T& default_value) const
+  { return get_namespace_property("system.lens_plane", identifier, default_value); }
+  
+  template<class T>
+  std::array<T,2> get_lens_plane_vector2_property(const std::string& id,
+                                                        const std::array<T,2>& default_val) const
+  { return get_namespace_vector2_property("system.lens_plane", id, default_val); }
+  
+  
+  
+  template<class T>
+  T get_deflection_engine_property(const std::string& identifier, const T& default_value) const
+  { return get_namespace_property("system.lens_plane.deflection_engine", identifier, default_value); }
+  
+  template<class T>
+  std::array<T,2> get_deflection_engine_vector2_property(const std::string& id,
+                                                        const std::array<T,2>& default_val) const
+  { return get_namespace_vector2_property("system.lens_plane.deflection_engine", id, default_val); }
+  
+  deflection_engine_type get_deflection_engine_type() const
   {
-    if(_comm.rank() == _master_rank)
-      return get("nanolens.method."+identifier, default_value);
-    return default_value;
+    std::string type 
+      = get_namespace_property<std::string>("system.lens_plane.deflection_engine", "<xmlattr>.type", "exact");
+    
+    if(type == "exact")
+      return EXACT;
+    else if(type == "tree")
+      return TREE;
+    else return EXACT;
   }
   
   template<class T>
-  std::array<T,2> get_method_vector2_property(const std::string& id, const std::array<T,2>& default_val) const
+  T get_namespace_property(const std::string& nspace, const std::string& property, const T& default_value) const
   {
+    T result;
     if(_comm.rank() == _master_rank)
-      return get_vector("nanolens.method."+id, default_val);
-    return default_val;
+      result =  get("nanolens."+nspace+"."+property, default_value);
+    
+    boost::mpi::broadcast(_comm, result, _master_rank);
+    return result;
+  }
+  
+  template<class T>
+  std::array<T,2> get_namespace_vector2_property(const std::string& nspace, 
+                                                 const std::string& property,
+                                                 const std::array<T,2>& default_val) const
+  {
+    std::array<T,2> result;
+    if(_comm.rank() == _master_rank)
+      result = get_vector("nanolens."+nspace+"."+property, default_val);
+    
+    boost::mpi::broadcast(_comm, result, _master_rank);
+    return result;
   }
   
   method_type get_method_type() const
   {
     return _method;
+  }
+  
+  lens_plane_type get_lens_plane_type() const
+  {
+    return _lens_plane_type;
   }
 private:
   void load_method()
@@ -217,6 +283,17 @@ private:
       _method = INVERSE_RAY_SHOOTING;
     else
       _method = INVERSE_RAY_SHOOTING;
+  }
+  
+  void load_lens_plane_type()
+  {
+    std::string type_string = get<std::string>("nanolens.system.lens_plane.<xmlattr>.type",
+                                               "microlensing_lens_plane");
+    
+    if(type_string == "microlensing_lens_plane")
+      _lens_plane_type = MICROLENSING;
+    else
+      _lens_plane_type = MICROLENSING;
   }
   
   template<class T>
@@ -303,6 +380,7 @@ private:
   std::string _raw_output;
   
   method_type _method;
+  lens_plane_type _lens_plane_type;
   
   
   friend class boost::serialization::access;
@@ -322,6 +400,7 @@ private:
     ar & _fits_output;
     ar & _raw_output;
     ar & _method;
+    ar & _lens_plane_type;
   }
 };
 
