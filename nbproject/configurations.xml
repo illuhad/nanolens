@@ -5,6 +5,7 @@
                    displayName="Header Files"
                    projectFiles="true">
       <itemPath>fits.hpp</itemPath>
+      <itemPath>fragmented_lens_plane.hpp</itemPath>
       <itemPath>geometry.hpp</itemPath>
       <itemPath>grid.hpp</itemPath>
       <itemPath>image_finder.hpp</itemPath>
@@ -24,6 +25,7 @@
       <itemPath>render_engine.hpp</itemPath>
       <itemPath>scheduler.hpp</itemPath>
       <itemPath>screen.hpp</itemPath>
+      <itemPath>spatial_grid_db.hpp</itemPath>
       <itemPath>star.hpp</itemPath>
       <itemPath>star_generator.hpp</itemPath>
       <itemPath>status.hpp</itemPath>
@@ -80,6 +82,8 @@
       </compileType>
       <item path="fits.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="fragmented_lens_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="geometry.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="grid.hpp" ex="false" tool="3" flavor2="0">
@@ -119,6 +123,8 @@
       <item path="scheduler.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="screen.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="spatial_grid_db.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="star.hpp" ex="false" tool="3" flavor2="0">
       </item>
@@ -171,6 +177,8 @@
       </compileType>
       <item path="fits.hpp" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="fragmented_lens_plane.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="geometry.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="grid.hpp" ex="false" tool="3" flavor2="0">
@@ -210,6 +218,8 @@
       <item path="scheduler.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="screen.hpp" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="spatial_grid_db.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="star.hpp" ex="false" tool="3" flavor2="0">
       </item>

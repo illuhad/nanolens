@@ -112,7 +112,9 @@ public:
                                 std::vector<star>& out,
                                 const configuration::random_distribution_descriptor& rand_x,
                                 const configuration::random_distribution_descriptor& rand_y,
-                                const configuration::random_distribution_descriptor& rand_mass)
+                                const configuration::random_distribution_descriptor& rand_mass,
+                                bool circularize,
+                                util::scalar circularization_radius)
   {
     if(_comm.rank() == _master_rank)
     {
@@ -121,10 +123,41 @@ public:
       std::vector<util::scalar> x_values;
       std::vector<util::scalar> y_values;
       std::vector<util::scalar> masses;
-      
-      generate_random_numbers(num_stars, rand_x, x_values);
-      generate_random_numbers(num_stars, rand_y, y_values);
       generate_random_numbers(num_stars, rand_mass, masses);
+      
+      if(circularize)
+      {
+        while(x_values.size() < num_stars)
+        {
+          assert(x_values.size() == y_values.size());
+
+          std::vector<util::scalar> x_value_candidates;
+          std::vector<util::scalar> y_value_candidates;
+
+          generate_random_numbers(2 * num_stars, rand_x, x_value_candidates);
+          generate_random_numbers(2 * num_stars, rand_y, y_value_candidates);
+
+          for(std::size_t i = 0; i < x_value_candidates.size(); ++i)
+          {
+            assert(x_value_candidates.size() == y_value_candidates.size());
+            util::scalar x = x_value_candidates[i];
+            util::scalar y = y_value_candidates[i];
+
+            if(util::square(x - rand_x.get_center()) + util::square(y - rand_y.get_center()) 
+              <= util::square(circularization_radius))
+            {
+              // accept candidates
+              x_values.push_back(x);
+              y_values.push_back(y);
+            }
+          }
+        }
+      }
+      else
+      {
+        generate_random_numbers(num_stars, rand_x, x_values);
+        generate_random_numbers(num_stars, rand_y, y_values);
+      }
       
       for(std::size_t i = 0; i < num_stars; ++i)
       {
@@ -168,6 +201,37 @@ public:
     }
   }
   
+  star from_random_distribution(const configuration::random_distribution_descriptor& rand_x,
+                                const configuration::random_distribution_descriptor& rand_y,
+                                const configuration::random_distribution_descriptor& rand_mass,
+                                bool circularize,
+                                util::scalar circularization_radius)
+  {
+    util::vector2 pos;
+    util::scalar mass = generate_random_number(rand_mass);
+
+    util::vector2 delta;
+    if(circularize)
+    {
+      do
+      {
+        pos[0] = generate_random_number(rand_x);
+        pos[1] = generate_random_number(rand_y);
+        delta = {pos[0] - rand_x.get_center(), pos[1] - rand_y.get_center()};
+      } while(util::dot(delta,delta) > util::square(circularization_radius));
+    }
+    else
+    {
+      pos[0] = generate_random_number(rand_x);
+      pos[1] = generate_random_number(rand_y);
+    }
+    
+    star result(pos, mass);
+    
+    return result;
+  }
+
+  
   const std::vector<star>& get_generated_stars() const
   { return _star_list; }
   
@@ -179,36 +243,35 @@ private:
                                const configuration::random_distribution_descriptor& descr,
                                std::vector<util::scalar>& out)
   {
-    if(descr.get_type() == configuration::random_distribution_descriptor::NORMAL)
-      generate_random_numbers(num_values,
-                              std::normal_distribution<>(descr.get_center(), descr.get_width()),
-                              out);
-    else if(descr.get_type() == configuration::random_distribution_descriptor::UNIFORM)
-      generate_random_numbers(num_values,
-                          std::uniform_real_distribution<>(descr.get_center()-descr.get_width(), 
-                                                           descr.get_center()+descr.get_width()),
-                          out);  
+    for(std::size_t i = 0; i < num_values; ++i)
+      out.push_back(generate_random_number(descr));
       
   }
   
-  template<class Distribution>
-  void generate_random_numbers(std::size_t num_values,
-                               const Distribution& distr,
-                               std::vector<util::scalar>& out)
+  util::scalar generate_random_number(const configuration::random_distribution_descriptor& descr) const
   {
-    out.clear();
+    if(descr.get_type() == configuration::random_distribution_descriptor::NORMAL)
+      return generate_random_number(
+                              std::normal_distribution<>(descr.get_center(), descr.get_width()));
+    else if(descr.get_type() == configuration::random_distribution_descriptor::UNIFORM)
+      return generate_random_number(
+                          std::uniform_real_distribution<>(descr.get_center()-descr.get_width(), 
+                                                           descr.get_center()+descr.get_width())); 
+    else return 0.0;
     
+  }
+  
+  template<class Distribution>
+  util::scalar generate_random_number(const Distribution& distr) const
+  {
     Distribution d = distr;
-    for(std::size_t i = 0; i < num_values; ++i)
-    {
-      out.push_back(d(_rand_generator));
-    }
+    return d(_rand_generator);
   }
   
   std::vector<star> _star_list;
   
   std::random_device _rd;
-  std::mt19937 _rand_generator;
+  mutable std::mt19937 _rand_generator;
   boost::mpi::communicator _comm;
   int _master_rank;
 };

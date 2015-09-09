@@ -61,7 +61,6 @@ public:
     util::scalar _center;
     util::scalar _width;
     
-    
     friend class boost::serialization::access;
     template<class Archive>
     void serialize(Archive & ar, const unsigned int version)
@@ -78,6 +77,9 @@ public:
     random_distribution_descriptor y_distribution;
     random_distribution_descriptor mass_distribution;
     std::size_t num_stars;
+    
+    bool circularize;
+    util::scalar circularization_radius;
         
     friend class boost::serialization::access;
     template<class Archive>
@@ -87,6 +89,8 @@ public:
       ar & y_distribution;
       ar & mass_distribution;
       ar & num_stars;
+      ar & circularize;
+      ar & circularization_radius;
     }
   };
   
@@ -97,7 +101,8 @@ public:
   
   enum lens_plane_type
   {
-    MICROLENSING = 0
+    MICROLENSING = 0,
+    FRAGMENTED_MICROLENSING
   };
   
   enum deflection_engine_type
@@ -115,12 +120,10 @@ public:
     {
       boost::property_tree::xml_parser::read_xml(filename, _tree);
 
-      _screen_pos = get_vector("nanolens.system.source_plane.position", util::vector2({0.0, 0.0}));
-      _screen_size = get_vector("nanolens.system.source_plane.physical_size", util::vector2({10.0, 10.0}));
-      _dL = get<util::scalar>("nanolens.system.dL", 1.0);
-      _dLS = get<util::scalar>("nanolens.system.dLS", 1.0);
-      
-      _resolution = get_vector("nanolens.system.source_plane.num_pixels", std::array<std::size_t, 2>({100, 100}));
+      _screen_pos = get_vector("nanolens.screen.position", util::vector2({0.0, 0.0}));
+      _screen_size = get_vector("nanolens.screen.physical_size", util::vector2({10.0, 10.0}));
+
+      _resolution = get_vector("nanolens.screen.num_pixels", std::array<std::size_t, 2>({100, 100}));
       
       _fits_output = get<std::string>("nanolens.fits_output", std::string());
       _raw_output = get<std::string>("nanolens.raw_output", std::string());
@@ -144,6 +147,17 @@ public:
               star_gen_descr.x_distribution = get_random_distribution(v, "x");
               star_gen_descr.y_distribution = get_random_distribution(v, "y");
               star_gen_descr.mass_distribution = get_random_distribution(v, "mass");
+              
+              if(v.second.find("circularize") != v.second.not_found())
+              {
+                star_gen_descr.circularize = true;
+                star_gen_descr.circularization_radius = v.second.get<util::scalar>("circularize.<xmlattr>.radius");
+              }
+              else
+              {
+                star_gen_descr.circularize = false;
+                star_gen_descr.circularization_radius = 0.0;
+              }
 
               _random_star_generators.push_back(star_gen_descr);
             }
@@ -172,12 +186,6 @@ public:
   
   const util::vector2& get_physical_screen_size() const
   { return _screen_size; }
-  
-  util::scalar get_dLS() const
-  { return _dLS; }
-  
-  util::scalar get_dL() const
-  { return _dL; }
   
   const std::vector<std::string>& get_star_files() const
   { return _star_files; }
@@ -292,6 +300,8 @@ private:
     
     if(type_string == "microlensing_lens_plane")
       _lens_plane_type = MICROLENSING;
+    else if(type_string == "fragmented_microlensing_lens_plane")
+      _lens_plane_type = FRAGMENTED_MICROLENSING;
     else
       _lens_plane_type = MICROLENSING;
   }
@@ -369,8 +379,6 @@ private:
   util::vector2 _screen_pos;
   util::vector2 _screen_size;
 
-  util::scalar _dL;
-  util::scalar _dLS;
   util::scalar _shear;
   util::scalar _sigma_smooth;
   boost::mpi::communicator _comm;
@@ -391,8 +399,6 @@ private:
     ar & _resolution;
     ar & _screen_pos;
     ar & _screen_size;
-    ar & _dL;
-    ar & _dLS;
     ar & _shear;
     ar & _sigma_smooth;
     ar & _star_files;

@@ -24,6 +24,7 @@
 #include "method_irs.hpp"
 #include "star_generator.hpp"
 #include "lens_plane.hpp"
+#include "fragmented_lens_plane.hpp"
 
 namespace nanolens {
 
@@ -53,7 +54,7 @@ public:
       for(const auto& element : lens_plane_statistics)
         *_ostr << "  " << element.first << " = " << element.second << std::endl;
       
-      *_ostr << "\n;"
+      *_ostr << "\n";
     }
     
     typename Method_type::settings method_settings(config);
@@ -119,19 +120,35 @@ public:
     switch(config.get_lens_plane_type())
     {
     case configuration::MICROLENSING:
-      
-      configuration::deflection_engine_type defl_engine
-        = config.get_deflection_engine_type();
-      switch(defl_engine)
       {
-      case configuration::TREE:
-        run_with_microlensing_lens_plane<tree_deflector>(config, ostr);
-        break;
-      case configuration::EXACT:
-        run_with_microlensing_lens_plane<exact_deflector>(config, ostr);
-        break;
+
+        configuration::deflection_engine_type defl_engine
+          = config.get_deflection_engine_type();
+        switch(defl_engine)
+        {
+        case configuration::TREE:
+          run_with_microlensing_lens_plane<tree_deflector>(config, ostr);
+          break;
+        case configuration::EXACT:
+          run_with_microlensing_lens_plane<exact_deflector>(config, ostr);
+          break;
+        }
       }
-      
+      break;
+    case configuration::FRAGMENTED_MICROLENSING:
+      {
+        configuration::deflection_engine_type defl_engine
+          = config.get_deflection_engine_type();
+        switch(defl_engine)
+        {
+        case configuration::TREE:
+          run_with_fragmented_microlensing_lens_plane<tree_deflector>(config, ostr);
+          break;
+        case configuration::EXACT:
+          run_with_fragmented_microlensing_lens_plane<exact_deflector>(config, ostr);
+          break;
+        }
+      }
       break;
     }
     
@@ -173,7 +190,9 @@ private:
                                         generated_stars,
                                         descr.x_distribution,
                                         descr.y_distribution,
-                                        descr.mass_distribution);
+                                        descr.mass_distribution,
+                                        descr.circularize,
+                                        descr.circularization_radius);
 
       for(const star& s : generated_stars)
         stars.push_back(s);
@@ -191,6 +210,94 @@ private:
     system<microlensing_lens_plane<Deflection_engine_type>> lensing_system(deflector_plane);
     
     standard_method_launcher<system<microlensing_lens_plane<Deflection_engine_type>>> launcher(&ostr);
+    launcher.run_configured_method(_comm, config, lensing_system);
+
+  }
+  
+  template<class Deflection_engine_type>
+  void run_with_fragmented_microlensing_lens_plane(const configuration& config,
+                                        util::master_ostream& ostr) const
+  {
+    star_generator star_gen(_comm);
+    
+    util::vector2 db_cell_size = config.get_lens_plane_vector2_property("star_db_cell_size", 
+                                                                        util::vector2({10.0, 10.0}));
+                                                                        
+    std::size_t num_cells = config.get_lens_plane_property("star_db_expected_num_cells", 40000);
+    
+    typename horizontally_fragmented_microlensing_lens_plane<Deflection_engine_type>::star_db_type
+      star_db("star_db", db_cell_size, num_cells, _comm, 0);
+    
+    std::size_t star_count = 0;
+  
+    for(const std::string& filename : config.get_star_files())
+    {
+      ostr << "Iterative star genesis: Processing file: " << filename << std::endl;
+      std::vector<star> loaded_stars;
+      star_gen.from_file(filename, loaded_stars); 
+
+      for(const star& s : loaded_stars)
+      {
+        star_db.insert(s.get_position(), s.get_mass());
+        ++star_count;
+      }
+    }
+  
+    for(const configuration::random_star_generator_descriptor& descr : 
+        config.get_random_star_generators())
+    {
+      ostr << "Iterative star genesis: Generating " << descr.num_stars << " random stars...\n";
+
+      for(std::size_t i = 0; i < descr.num_stars; ++i)
+      {
+        star current_star = star_gen.from_random_distribution(
+                                          descr.x_distribution,
+                                          descr.y_distribution,
+                                          descr.mass_distribution,
+                                          descr.circularize,
+                                          descr.circularization_radius);
+        
+        star_db.insert(current_star.get_position(), current_star.get_mass());
+        ++star_count;
+      }
+
+    }
+  
+    star_db.commit();
+
+    ostr << "Committed " << star_count << " stars to the spatial database.\n";
+    
+    util::scalar lens_plane_y_center = config.get_lens_plane_property("lens_plane_y_center", 0.0);
+    
+    util::scalar fragment_size = config.get_lens_plane_property("fragment_size", 1.0);
+    
+    util::scalar fragment_star_distribution_radius = config.get_lens_plane_property(
+                                                              "fragment_star_inclusion_radius", 
+                                                              10.0);
+    
+    std::shared_ptr<horizontally_fragmented_microlensing_lens_plane<Deflection_engine_type>> deflector_plane(
+      new horizontally_fragmented_microlensing_lens_plane<Deflection_engine_type>(
+                                                  star_db,
+                                                  typename Deflection_engine_type::settings(config),
+                                                  lens_plane_y_center,
+                                                  config.get_shear(),
+                                                  config.get_sigma_smooth(),
+                                                  fragment_size,
+                                                  fragment_star_distribution_radius));
+
+    system<horizontally_fragmented_microlensing_lens_plane<Deflection_engine_type>> lensing_system(deflector_plane);
+    
+    standard_method_launcher
+    <
+      system
+      <
+        horizontally_fragmented_microlensing_lens_plane
+        <
+          Deflection_engine_type
+        >
+      >
+    > launcher(&ostr);
+    
     launcher.run_configured_method(_comm, config, lensing_system);
 
   }

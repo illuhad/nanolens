@@ -263,7 +263,7 @@ public:
                                                                  extended_num_buckets);
     
     _data = util::multi_array<ValueType>(
-      std::move(array_to_vector(extended_num_buckets)));
+      std::move(util::array_to_vector(extended_num_buckets)));
     
   }
   
@@ -392,6 +392,79 @@ using grid2d = grid<KeyType, ValueType, 2>;
 
 template<typename KeyType, class ValueType>
 using grid3d = grid<KeyType, ValueType, 3>;
+
+template<class Field_type, std::size_t Dimension, class T>
+class virtual_cached_grid
+{
+public:
+    
+  static_assert(Dimension > 0, "Dimension of cache grid must be at least 1");
+  
+  typedef grid<Field_type, std::size_t, Dimension, true> grid_type;
+  
+  typedef typename grid_type::scalar_array_type scalar_array_type;
+  typedef typename grid_type::index_type index_type;
+  
+  class buffer_entry
+  {
+    index_type _grid_position;
+    T _data;
+    
+  public:
+    buffer_entry(const index_type& grid_position,
+                 const T& data)
+    : _grid_position(grid_position),
+      _data(data)
+    {}
+    
+    buffer_entry()
+    : _grid_position({-1, -1})
+    {}
+    
+    const index_type& get_grid_position() const
+    { return _grid_position; }
+    
+    T& data()
+    { return _data; }
+    
+    const T& data() const
+    { return _data; }
+  };
+  
+  typedef std::function<void (T&, const scalar_array_type&)> entry_initialization_function;
+  
+  virtual_cached_grid(const scalar_array_type& min_extent,
+                      const scalar_array_type& max_extent,
+                      const index_type& num_buckets,
+                      entry_initialization_function f)
+  : _grid(min_extent, max_extent, num_buckets),
+    _init_func(f)
+  {
+    std::fill(_grid.begin(), _grid.end(), 0);
+  }
+  
+  const scalar_array_type& get_cell_size() const
+  { return _grid.get_bucket_size(); }
+  
+    
+  T& operator[](const scalar_array_type& pos)
+  {
+    std::size_t buffer_index = _grid[pos];
+    //TODO
+    /*
+    index_type expected_grid_position = _grid.
+    
+    if(buffer_index < _buffer.size())
+    {
+      if(_buffer[buffer_index].get_grid_position() == )
+    }*/
+  }
+private:
+  entry_initialization_function _init_func;
+  grid_type _grid;
+  util::stable_circular_buffer<buffer_entry> _buffer;
+  
+};
 
 template<typename FieldType, class ValueType, std::size_t Dimension, unsigned Cache_size>
 class cached_ondemand_grid

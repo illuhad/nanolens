@@ -47,6 +47,12 @@ public:
   inline const Lens_plane_type& get_deflector() const
   { return *_deflector; }
   
+  inline void set_deflector(const std::shared_ptr<Lens_plane_type>& lens_plane)
+  {
+    assert(lens_plane != nullptr);
+    _deflector = lens_plane;
+  }
+  
 
   inline util::vector2 lensing_transformation(const util::vector2& lens_plane_pos) const
   { 
