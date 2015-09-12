@@ -41,6 +41,7 @@ public:
                                               util::scalar y_fragment_center,
                                               util::scalar shear,
                                               util::scalar sigma_smooth,
+                                              util::scalar shear_rotation_angle,
                                               util::scalar fragment_size,
                                               util::scalar fragment_star_distribution_radius)
   : _star_db(star_db),
@@ -48,6 +49,7 @@ public:
     _fragment_star_distribution_radius(fragment_star_distribution_radius),
     _shear(shear),
     _sigma_smooth(sigma_smooth),
+    _shear_rotation_angle(shear_rotation_angle),
     _y_fragment_center(y_fragment_center),
     _half_fragment_size(0.5 * fragment_size),
     _settings(settings)
@@ -62,7 +64,12 @@ public:
     if(!is_within_fragment_range(lens_plane_pos))
       load_new_fragment(get_next_fragment_center(lens_plane_pos));
     
-    return _current_fragment->lensing_transformation(lens_plane_pos);
+    util::vector2 result = _current_fragment->lensing_transformation(lens_plane_pos);
+    // Correct result
+    util::sub(result, get_deflection_correction(lens_plane_pos));
+    
+    
+    return result;
   }
   
   inline util::vector2 inverse_lensing_transformation(const util::vector2& lens_plane_pos,
@@ -71,8 +78,12 @@ public:
     if(!is_within_fragment_range(lens_plane_pos))
       load_new_fragment(get_next_fragment_center(lens_plane_pos));
     
-    return _current_fragment->inverse_lensing_transformation(lens_plane_pos,
-                                                             source_plane_pos); 
+    util::vector2 result = _current_fragment->inverse_lensing_transformation(lens_plane_pos,
+                                                                     source_plane_pos);
+    // Correct result
+    util::add(result, get_deflection_correction(lens_plane_pos));
+    
+    return result;
   }
   
   util::scalar get_shear() const
@@ -112,6 +123,27 @@ public:
   }
   
 private:
+  inline util::vector2 get_deflection_correction(const util::vector2& point) const
+  {
+    util::vector2 r_hole = point;
+    util::sub(r_hole, _center_of_mass);
+    
+    util::vector2 hole_contribution = r_hole;
+ 
+    util::scalar R_squared = util::square(_fragment_star_distribution_radius);
+    if(util::dot(r_hole, r_hole) <= R_squared)
+    {
+      util::scale(hole_contribution, -_sigma_star);
+    }
+    else
+    {
+      star hole_pseudo_star(_current_fragment_center, -R_squared * _sigma_star);
+      hole_pseudo_star.calculate_deflection_angle(point, hole_contribution);
+    }
+
+    return hole_contribution;
+  }
+  
   inline bool is_within_fragment_range(const util::vector2& point) const
   {
     return std::abs(point[0] - _current_fragment_center[0]) <= _half_fragment_size;
@@ -128,10 +160,26 @@ private:
                                        _fragment_star_distribution_radius,
                                        query_result);
     
+    stars.reserve(query_result.size());
+    _total_mass = 0.0;
+    _center_of_mass = {0.0, 0.0};
+    for(const auto& element : query_result)
+    {
+      stars.push_back(star(element.first, element.second));
+      _total_mass += element.second;
+      
+      util::vector2 center_of_mass_contribution = element.first;
+      util::scale(center_of_mass_contribution, element.second);
+      util::add(_center_of_mass, center_of_mass_contribution);
+    }
+    util::scale(_center_of_mass, 1.0 / _total_mass);
+    
+    
     _current_fragment = lens_plane_fragment_ptr(new lens_plane_fragment(stars, 
                                                                         _settings, 
                                                                         _shear, 
-                                                                        _sigma_smooth));
+                                                                        _sigma_smooth,
+                                                                        _shear_rotation_angle));
     
     _sigma_star = _current_fragment->get_sigma_star();
     _smooth_matter_fraction = _current_fragment->get_smooth_matter_fraction();
@@ -152,19 +200,24 @@ private:
   star_db_type _star_db;
   
   mutable util::vector2 _current_fragment_center;
+
   mutable lens_plane_fragment_ptr _current_fragment;
   
   util::scalar _shear;
   util::scalar _sigma_smooth;
+  util::scalar _shear_rotation_angle;
   
   util::scalar _fragment_size;
   util::scalar _half_fragment_size;
   util::scalar _fragment_star_distribution_radius;
+  mutable util::scalar _total_mass;
   
   mutable util::scalar _sigma_star;
   mutable util::scalar _smooth_matter_fraction;
   
   util::scalar _y_fragment_center;
+  
+  mutable util::vector2 _center_of_mass;
   
   deflection_engine_settings_type _settings;
 };

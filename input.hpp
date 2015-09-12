@@ -174,6 +174,7 @@ public:
       
       _shear = get<util::scalar>("nanolens.system.lens_plane.shear", 0.0);
       _sigma_smooth = get<util::scalar>("nanolens.system.lens_plane.sigma_smooth", 0.0);
+      _shear_rotation_angle = get<util::scalar>("nanolens.system.lens_plane.shear_rotation_angle", 0.0);
     }
     boost::mpi::broadcast(_comm, *this, _master_rank);
   }
@@ -196,6 +197,9 @@ public:
   
   util::scalar get_shear() const
   { return _shear; }
+  
+  util::scalar get_shear_rotation_angle() const
+  { return _shear_rotation_angle; }
   
   util::scalar get_sigma_smooth() const
   { return _sigma_smooth; }
@@ -381,6 +385,7 @@ private:
 
   util::scalar _shear;
   util::scalar _sigma_smooth;
+  util::scalar _shear_rotation_angle;
   boost::mpi::communicator _comm;
   int _master_rank;
   

@@ -7,7 +7,7 @@
   <system>
     <lens_plane type="fragmented_microlensing_lens_plane">
       <deflection_engine type="tree">
-        <opening_angle>0.6</opening_angle>
+        <opening_angle>0.5</opening_angle>
       </deflection_engine>
       <star_db_cell_size x="20.0" y="20.0" />
       <star_db_expected_num_cells>60000</star_db_expected_num_cells>
@@ -17,9 +17,9 @@
       <shear>0.0</shear>
       <sigma_smooth>0.1</sigma_smooth>
       <!--<star_generator type="from_file" filename="nanolens_star_log.dat"/>-->
-      <star_generator type="from_random_distribution" num_stars="10000">
-        <x distribution="uniform" min="-200" max="200" />
-        <y distribution="uniform" min="-7" max="7" />
+      <star_generator type="from_random_distribution" num_stars="10000000">
+        <x distribution="uniform" min="-600" max="600" />
+        <y distribution="uniform" min="-600" max="600" />
         <mass distribution="uniform" min="0.5" max="1.2" />
 	<!--<circularize radius="100.0" />-->
       </star_generator>

@@ -205,7 +205,8 @@ private:
       new microlensing_lens_plane<Deflection_engine_type>(stars,
                                                   typename Deflection_engine_type::settings(config),
                                                   config.get_shear(),
-                                                  config.get_sigma_smooth()));
+                                                  config.get_sigma_smooth(),
+                                                  config.get_shear_rotation_angle()));
 
     system<microlensing_lens_plane<Deflection_engine_type>> lensing_system(deflector_plane);
     
@@ -282,6 +283,7 @@ private:
                                                   lens_plane_y_center,
                                                   config.get_shear(),
                                                   config.get_sigma_smooth(),
+                                                  config.get_shear_rotation_angle(),
                                                   fragment_size,
                                                   fragment_star_distribution_radius));
 

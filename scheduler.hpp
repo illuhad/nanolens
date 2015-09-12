@@ -54,6 +54,32 @@ public:
     
   }
   
+  template<class Function>
+  void autoscaled_run(std::size_t num_job_entities, Function individual_test_job)
+  {
+    std::size_t benchmark_size = 100;
+
+
+    util::timer t;
+
+    do
+    {
+      benchmark_size *= 2;
+      t.start();
+      for(std::size_t i = 0; i < benchmark_size; ++i)
+        individual_test_job(i, benchmark_size);
+    }
+    while(t.stop() < 0.5);
+    
+    boost::mpi::broadcast(_comm, benchmark_size, 0.5);
+    
+    run(num_job_entities, [benchmark_size, &individual_test_job]()
+    {
+      for(std::size_t i = 0; i < benchmark_size; ++i)
+        individual_test_job(i, benchmark_size);
+    });
+  }
+  
   void uniform(std::size_t num_jobs)
   {
     _performance_statistic.resize(_comm.size());

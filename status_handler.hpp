@@ -38,7 +38,7 @@ class standard_terminal_output : public status_handler
 {
 public:
   standard_terminal_output(const boost::mpi::communicator& comm, int master_rank)
-  : _comm(comm), _master_cout(std::cout, master_rank), _max_line_length(0)
+  : _comm(comm), _master_cout(std::cout, master_rank), _max_line_length(0), _prev_progress(0.0)
   {
     std::cout.width(6);
     std::cout.precision(5);
@@ -65,27 +65,40 @@ public:
         _master_cout << "(relative to process 0)\n\n";
       }
 
-      std::string clear_string = "\r";
-      for(std::size_t i = 0; i < _max_line_length; ++i)
-        clear_string += " ";
+            
+      if(!status.progress_known() || (std::abs(status.get_progress() - _prev_progress) > 0.005))
+      {
+        std::string clear_string = "\r";
+        for(std::size_t i = 0; i < _max_line_length; ++i)
+          clear_string += " ";
 
-      _master_cout << clear_string;
-      std::stringstream sstr;
-      sstr << "\r" << "Status: " << status.get_task();
-      if(status.progress_known())
-        sstr << " | " << status.get_progress() * 100 << "%";
-        
-      std::string msg =  sstr.str();
+        _master_cout << clear_string;
+        std::stringstream sstr;
 
-      if(msg.length() > _max_line_length)
-        _max_line_length = msg.length();
+        sstr << "\r" << "Status: " << status.get_task();
+        if(status.progress_known())
+          sstr << " | " << status.get_progress() * 100 << "%";
 
-      _master_cout << "\r" << msg;
-      std::cout.flush();
+        std::string msg =  sstr.str();
+
+        if(msg.length() > _max_line_length)
+          _max_line_length = msg.length();
+
+        _master_cout << "\r" << msg;
+        std::cout.flush();
+
+        _prev_progress = status.get_progress();
+      }
+      
+      if(!status.progress_known())
+        // Make sure it will be updated once we have again a progress value
+        _prev_progress = -1.0;
     }
   }
   
 private:
+  double _prev_progress;
+  
   const boost::mpi::communicator _comm;
   util::master_ostream _master_cout;
   unsigned _max_line_length;

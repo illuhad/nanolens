@@ -178,25 +178,24 @@ public:
       this->_screen->get_properties().get_corner_of_max_extent(),
       this->_screen->get_properties().get_num_pixels());
     
-    schedule.run(n_rays_x, [&]()
+    
+    // the dummy counter prevents the compiler from optimizing stuff away
+    std::size_t dummy_counter = 0;
+    schedule.autoscaled_run(n_rays_x, [&](std::size_t test_ray_index, std::size_t num_tests)
     {
-      std::size_t dummy_counter = 0;
-      std::size_t benchmark_size = 10000;
-      
       util::vector2 ray_position = shooting_region.get_region_center();
       ray_position[1] = shooting_region.get_region_min_corner()[1];
       
-      util::scalar step_size = shooting_region.get_region_size()[1] / benchmark_size;
+      util::scalar step_size = shooting_region.get_region_size()[1] / static_cast<util::scalar>(num_tests);
       
-      for(std::size_t i = 0; i < benchmark_size; ++i)
-      {
-        util::vector2 impact_position = sys.lensing_transformation(ray_position);
-        if(pixel_grid_translator.contains_point(impact_position))
-          ++dummy_counter;
-        
-        ray_position[1] += step_size;
-      }
+      ray_position[1] += step_size * test_ray_index;
+      
+      util::vector2 impact_position = sys.lensing_transformation(ray_position);
+      if(pixel_grid_translator.contains_point(impact_position))
+        ++dummy_counter;
+      
     });
+      
     
     handler(status_info("Scheduling complete", &schedule, ""));
     

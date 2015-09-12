@@ -63,36 +63,66 @@ public:
   typedef std::array<util::scalar, Dimension> point_type;
   typedef std::vector<std::pair<point_type, T>> query_result_list_type;
   
-  struct storage_map_entry
+  class storage_map_entry
   {
-    std::string filename;
-    
-    // Filehandles are only for write access, and exist only on the master process
-    std::shared_ptr<std::fstream> file_handle;
+  public:
     
     const std::string& get_filename() const
     {
-      return filename;
+      return _filename;
+    }
+    
+    void set_filename(const std::string& name)
+    {
+      _filename = name;
     }
     
     const std::shared_ptr<std::fstream>& get_file_handle() const
     {
-      return file_handle;
+      return _file_handle;
+    }
+    
+    std::shared_ptr<std::fstream> get_file_handle()
+    {
+      return _file_handle;
+    }
+    
+    void set_file_handle(const std::shared_ptr<std::fstream>& handle)
+    {
+      _file_handle = handle;
+      _serializer = std::shared_ptr<boost::archive::binary_oarchive>(
+          new boost::archive::binary_oarchive(*_file_handle));
+    }
+    
+    const std::shared_ptr<boost::archive::binary_oarchive>& get_serializer() const
+    {
+      return _serializer;
+    }
+    
+    std::shared_ptr<boost::archive::binary_oarchive> get_serializer()
+    {
+      return _serializer;
     }
     
   private:
+    std::string _filename;
+    
+    // Filehandles are only for write access, and exist only on the master process
+    std::shared_ptr<std::fstream> _file_handle;
+    std::shared_ptr<boost::archive::binary_oarchive> _serializer;
+    
     friend class boost::serialization::access;
 
     template<class Archive>
     void save(Archive& ar, const unsigned int version) const
     {
-      ar & filename;
+      ar & _filename;
     }
 
     template<class Archive>
     void load(Archive& ar, const unsigned int version)
     {
-      ar & filename;
+      ar & _filename;
     }
     BOOST_SERIALIZATION_SPLIT_MEMBER()
   };
@@ -120,31 +150,51 @@ public:
       auto it = _storage_map.find(corresponding_grid_entry); 
       if(it != _storage_map.end())
       {
-        boost::archive::binary_oarchive serializer(*(it->second.file_handle));
-
-        serializer << position << x;
+        *(it->second.get_serializer()) << position << x;
       }
       else
       {
         std::string filename = get_file_name(corresponding_grid_entry);
 
         storage_map_entry entry;
-        entry.filename = filename;
-        entry.file_handle = std::shared_ptr<std::fstream>(new std::fstream(filename.c_str(), 
-                                                                           std::ios::binary | std::ios::out | std::ios::trunc));
+        entry.set_filename(filename);
+        entry.set_file_handle(std::shared_ptr<std::fstream>(new std::fstream(filename.c_str(), 
+                                                                           std::ios::binary | std::ios::out | std::ios::trunc)));
 
-        boost::archive::binary_oarchive serializer(*(entry.file_handle));
+        assert(entry.get_file_handle()->is_open());
 
-        serializer << position << x;
+        *(entry.get_serializer()) << position << x;
 
         _storage_map.insert(std::make_pair(corresponding_grid_entry, entry));
       }
     }
   }
   
+  template<class Function>
+  void for_each(Function& f) const
+  {
+    for(const auto& db_file : _storage_map)
+    {
+      query_result_list_type cell_content;
+      load_cell(db_file.first, cell_content);
+      
+      for(const auto& data_element : cell_content)
+      {
+        f(data_element.first, data_element.second);
+      }
+    }
+  }
+  
   void commit()
   {
-    
+    if(_comm.rank() == _master_rank)
+    {
+      for(const auto& element : _storage_map)
+      {
+        if(element.second.get_file_handle())
+          element.second.get_file_handle()->flush();
+      }
+    }
     boost::mpi::broadcast(_comm, _storage_map, _master_rank);
   }
   
@@ -168,9 +218,9 @@ public:
     
     query_result_list_type candidates;
       
-    for(long long int i = min_corner_index[0]; i < max_corner_index[0]; ++i)
+    for(long long int i = min_corner_index[0]; i <= max_corner_index[0]; ++i)
     {
-      for(long long int j = min_corner_index[1]; j < max_corner_index[1]; ++j)
+      for(long long int j = min_corner_index[1]; j <= max_corner_index[1]; ++j)
       {
         // Load cell at (i,j)
         grid_index_type current_cell = {i, j};
@@ -208,19 +258,30 @@ private:
   void load_cell(const grid_index_type& grid_pos, query_result_list_type& out) const
   {
     std::string file = _storage_map[grid_pos].get_filename();
-    assert(file.length() != 0);
-    
-    std::ifstream cell_file(file.c_str(), std::ios::binary);
-    
-    boost::archive::binary_iarchive serializer(cell_file);
-    while(cell_file.good())
+    if(file.length() != 0)
     {
-      point_type pos;
-      T x;
-      serializer >> pos;
-      serializer >> x;
-      
-      out.push_back(std::make_pair(pos, x));
+    
+      std::ifstream cell_file(file.c_str(), std::ios::binary);
+
+      if(cell_file.is_open())
+      {
+        boost::archive::binary_iarchive serializer(cell_file);
+        
+        point_type pos;
+        T x;
+        try
+        {
+          while(cell_file)
+          {
+            serializer >> pos;
+            serializer >> x;
+
+            out.push_back(std::make_pair(pos, x));
+          }
+        }
+        catch(...)
+        { /* The serializer will throw an error when it has reached the end of the file*/ }
+      }
     }
     
   }

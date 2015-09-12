@@ -110,7 +110,7 @@ inline void normalize(vector2& a)
 }
 
 template<typename ScalarType, std::size_t M, std::size_t N>
-void matrix_vector_mult(const matrix<ScalarType, M, N>& mat,
+inline void matrix_vector_mult(const matrix<ScalarType, M, N>& mat,
                         const vector<ScalarType, N>& x,
                         vector<ScalarType,M>& out)
 {

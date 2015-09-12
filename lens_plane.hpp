@@ -111,11 +111,13 @@ public:
   explicit microlensing_lens_plane(const std::vector<star>& deflectors,
                       const deflector_settings_type& settings,
                       util::scalar shear = 0.,
-                      util::scalar sigma_smooth = 0.)
+                      util::scalar sigma_smooth = 0.,
+                      util::scalar shear_rotation_angle = 0.)
   : _deflectors(deflectors), 
   _deflection_engine(deflectors, settings),
   _shear(shear),
-  _sigma_smooth(sigma_smooth)
+  _sigma_smooth(sigma_smooth),
+  _shear_rotation_angle(shear_rotation_angle)
   {
     // Get mean mass
     util::scalar mean_mass = 0.0;
@@ -157,8 +159,20 @@ public:
 
     this->_smooth_matter_fraction = _sigma_smooth / (_sigma_star + _sigma_smooth);
 
-    _shear_and_smooth_matter_x = 1.0 - _shear - _sigma_smooth;
-    _shear_and_smooth_matter_y = 1.0 + _shear - _sigma_smooth;
+    // Set up shear matrix
+    
+    util::scalar shear_angle_rad = 
+      _shear_rotation_angle * 2.0 * boost::math::constants::pi<util::scalar>() / 360.0;
+    
+    util::scalar cos_phi = std::cos(shear_angle_rad);
+    util::scalar sin_phi = std::sin(shear_angle_rad);
+    util::scalar cos2_phi = util::square(cos_phi);
+    util::scalar sin2_phi = util::square(sin_phi);
+    util::scalar A = 1.0 - _shear;
+    util::scalar B = 1.0 + _shear;
+    
+    _shear_matrix = {{{A * cos2_phi + B * sin2_phi, (A -B )* cos_phi * sin_phi}, 
+                      {(A -B )* cos_phi * sin_phi, A * cos2_phi + B * sin2_phi}}};
   }
 
 
@@ -191,9 +205,14 @@ public:
   // at unit distance
   inline util::vector2 lensing_transformation(const util::vector2& lens_plane_pos) const
   {
-    util::vector2 out = lens_plane_pos;
-    out[0] *= _shear_and_smooth_matter_x;
-    out[1] *= _shear_and_smooth_matter_y;
+    util::vector2 out;
+    util::matrix_vector_mult(_shear_matrix, lens_plane_pos, out);
+    
+    util::vector2 smooth_matter_contribution = lens_plane_pos;
+    out[0] *= _sigma_smooth;
+    out[1] *= _sigma_smooth;
+    
+    util::sub(out, smooth_matter_contribution);;
 
     util::vector2 deflection;
     get_deflection_angle(lens_plane_pos, deflection);
@@ -358,8 +377,9 @@ private:
   util::scalar _sigma_star;
   util::scalar _sigma_smooth;
 
-  util::scalar _shear_and_smooth_matter_x;
-  util::scalar _shear_and_smooth_matter_y;
+  util::scalar _shear_rotation_angle;
+  
+  util::matrix_nxn<util::scalar, 2> _shear_matrix;
 
   Deflector_type _deflection_engine;
 };
