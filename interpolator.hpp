@@ -345,6 +345,7 @@ public:
     result[1] = _coefficients[1] - delta[1] * _coefficients[2] + delta[0] * _coefficients[3]
       - eval_polynomials[1] * _coefficients[4] + eval_polynomials[0] * _coefficients[5]
       - eval_polynomials[3] * _coefficients[6] + eval_polynomials[2] * _coefficients[7];
+   
     
     return result;
   }

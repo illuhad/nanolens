@@ -171,8 +171,8 @@ public:
     util::scalar A = 1.0 - _shear;
     util::scalar B = 1.0 + _shear;
     
-    _shear_matrix = {{{A * cos2_phi + B * sin2_phi, (A -B )* cos_phi * sin_phi}, 
-                      {(A -B )* cos_phi * sin_phi, A * cos2_phi + B * sin2_phi}}};
+    _shear_matrix = {{{A * cos2_phi + B * sin2_phi, (A - B)* cos_phi * sin_phi}, 
+                      {(A -B )* cos_phi * sin_phi, A * sin2_phi + B * cos2_phi}}};
   }
 
 
@@ -209,8 +209,8 @@ public:
     util::matrix_vector_mult(_shear_matrix, lens_plane_pos, out);
     
     util::vector2 smooth_matter_contribution = lens_plane_pos;
-    out[0] *= _sigma_smooth;
-    out[1] *= _sigma_smooth;
+    smooth_matter_contribution[0] *= _sigma_smooth;
+    smooth_matter_contribution[1] *= _sigma_smooth;
     
     util::sub(out, smooth_matter_contribution);;
 
