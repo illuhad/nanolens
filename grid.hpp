@@ -21,6 +21,7 @@
 #define	GRID_HPP
 
 #include <array>
+#include <boost/circular_buffer.hpp>
 #include "util.hpp"
 
 
@@ -394,13 +395,20 @@ template<typename KeyType, class ValueType>
 using grid3d = grid<KeyType, ValueType, 3>;
 
 template<class Field_type, std::size_t Dimension, class T>
-class virtual_cached_grid
+class buffered_grid_cache
 {
 public:
     
   static_assert(Dimension > 0, "Dimension of cache grid must be at least 1");
   
-  typedef grid<Field_type, std::size_t, Dimension, true> grid_type;
+  class buffer_entry;
+  
+  typedef boost::circular_buffer<buffer_entry> buffer_type;
+  typedef buffer_entry* data_ptr_type;
+  
+  typedef grid<Field_type, data_ptr_type, Dimension, true> grid_type;
+  
+  
   
   typedef typename grid_type::scalar_array_type scalar_array_type;
   typedef typename grid_type::index_type index_type;
@@ -433,150 +441,66 @@ public:
   
   typedef std::function<void (T&, const scalar_array_type&)> entry_initialization_function;
   
-  virtual_cached_grid(const scalar_array_type& min_extent,
+  buffered_grid_cache() = default;
+  buffered_grid_cache(const buffered_grid_cache&) = delete;
+  buffered_grid_cache& operator=(const buffered_grid_cache&) = delete;
+  
+  
+  buffered_grid_cache(const scalar_array_type& min_extent,
                       const scalar_array_type& max_extent,
                       const index_type& num_buckets,
-                      entry_initialization_function f)
+                      entry_initialization_function f,
+                      std::size_t cache_size)
   : _grid(min_extent, max_extent, num_buckets),
-    _init_func(f)
+    _init_func(f), _buffer(cache_size)
   {
-    std::fill(_grid.begin(), _grid.end(), 0);
+    std::fill(_grid.begin(), _grid.end(), nullptr);
   }
   
-  const scalar_array_type& get_cell_size() const
+  const scalar_array_type get_cell_size() const
   { return _grid.get_bucket_size(); }
   
     
   T& operator[](const scalar_array_type& pos)
   {
-    std::size_t buffer_index = _grid[pos];
-    //TODO
-    /*
-    index_type expected_grid_position = _grid.
+    index_type grid_index = _grid.get_index(pos);
+    data_ptr_type data_iterator = _grid[grid_index];
     
-    if(buffer_index < _buffer.size())
+    if(data_iterator == nullptr)
     {
-      if(_buffer[buffer_index].get_grid_position() == )
-    }*/
+      // Create new cell
+      return create_new_cell(grid_index);
+    }
+    else
+    {
+      if(data_iterator->get_grid_position() == grid_index)
+        return data_iterator->data();
+      else
+      {
+        // Create new cell
+        return create_new_cell(grid_index);
+      }
+    }
+    
   }
 private:
+  T& create_new_cell(const index_type& grid_index)
+  {
+    scalar_array_type center = _grid.get_central_position_of_bucket(grid_index);
+    
+    T data;
+    _init_func(data, center);
+    
+    _buffer.push_back(buffer_entry(grid_index, data));
+    _grid[grid_index] = &(_buffer[_buffer.size() - 1]);
+    
+    return _buffer.rbegin()->data();
+  }
+  
   entry_initialization_function _init_func;
   grid_type _grid;
-  util::stable_circular_buffer<buffer_entry> _buffer;
+  buffer_type _buffer;
   
-};
-
-template<typename FieldType, class ValueType, std::size_t Dimension, unsigned Cache_size>
-class cached_ondemand_grid
-{
-public:
-  static_assert(Cache_size > 0, "Need at least 1 element in the cache");
-  
-  typedef std::array<FieldType, Dimension> scalar_array_type;
-  typedef std::array<long, Dimension> index_type;
-  
-  typedef typename util::multi_array<ValueType>::iterator iterator;
-  typedef typename util::multi_array<ValueType>::const_iterator const_iterator;
-  
-  typedef std::function<void (ValueType&, const scalar_array_type&)> bucket_initialization_function;
-  
-  cached_ondemand_grid()
-  : _bucket_size({1.0, 1.0}), _init_func([](ValueType&, const scalar_array_type&) {})
-  {
-    for(std::size_t i = 0; i < _cache.size(); ++i)
-    {
-      _cache[i].is_used = false;
-      _lru_entry_sorting[i] = i;
-    }
-  }
-  
-  cached_ondemand_grid(const scalar_array_type& bucket_size,
-                       bucket_initialization_function f)
-  : _bucket_size(bucket_size), _init_func(f)
-  {
-    for(std::size_t i = 0; i < _cache.size(); ++i)
-    {
-      _cache[i].is_used = false;
-      _lru_entry_sorting[i] = i;
-    }
-  }
-  
-  const scalar_array_type& get_cell_size() const
-  { return _bucket_size; }
-  
-  
-  ValueType& operator[](const scalar_array_type& pos)
-  {
-    index_type idx = get_index(pos);
-    
-    for(std::size_t i = 0; i < Cache_size; ++i)
-      if(_cache[i].is_used)
-        if(_cache[i].id == idx)
-          return access_cache_entry(i);
-      
-    ValueType& v = allocate_new_cache_entry(idx);
-    
-    scalar_array_type cell_center;
-    for(std::size_t i = 0; i < Dimension; ++i)
-      cell_center[i] = (static_cast<util::scalar>(idx[i])+0.5) * _bucket_size[i];
-    
-    _init_func(v, cell_center);
-    return v;
-  }
-private:
-  struct cache_entry
-  {
-    bool is_used;
-    index_type id;
-    ValueType v;
-  };
-  
-  inline index_type get_index(const scalar_array_type& point) const
-  {
-    index_type result;
-    
-    for(std::size_t i = 0; i < Dimension; ++i)
-    {
-      typename index_type::value_type integer_fraction 
-          = static_cast<typename index_type::value_type>(point[i] / _bucket_size[i]);
-      // Necessary to fix the truncation to zero for negative coordinates
-      if(point[i] < 0.0)
-        integer_fraction -= 1;
-      result[i] = integer_fraction;
-    }
-    
-    return result;
-  }
-  
-  inline ValueType& access_cache_entry(std::size_t index)
-  {
-    if(index != _lru_entry_sorting[0])
-    {
-      std::swap(_lru_entry_sorting[index], _lru_entry_sorting[index - 1]);
-    }
-    
-    return _cache[index].v;
-  }
-  
-  ValueType& allocate_new_cache_entry(index_type id)
-  {
-    for(std::size_t i = 0; i < _cache.size(); ++i)
-      if(!_cache[i].is_used)
-      {
-        _cache[i].is_used = true;
-        _cache[i].id = id;
-        return _cache[i].v;
-      }
-    
-    // We need to remove an element
-    _cache[_lru_entry_sorting[Cache_size - 1]].id = id;
-    return _cache[_lru_entry_sorting[Cache_size - 1]].v;
-  }
-  
-  std::array<cache_entry, Cache_size> _cache;
-  std::array<std::size_t, Cache_size> _lru_entry_sorting;
-  scalar_array_type _bucket_size;
-  bucket_initialization_function _init_func;
 };
 
 }

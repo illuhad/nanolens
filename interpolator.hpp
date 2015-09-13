@@ -234,6 +234,128 @@ private:
 typedef vector_interpolator<util::scalar, util::scalar, 2, util::vector2, bicubic_interpolator>
 standard_vector2_interpolator;
 
+// Uses a taylor series to approximate the deflection angle. Expects Vector_type
+// to be two-dimensional.
+template<typename T, class Vector_type>
+class deflection_angle_taylor_interpolator
+{
+public:
+  typedef Vector_type position_vector_type;
+  typedef std::array<Vector_type, 4> eval_values_storage_type;
+  
+  deflection_angle_taylor_interpolator() = default;
+  deflection_angle_taylor_interpolator(const position_vector_type& min_extent,
+                                       const position_vector_type& max_extent)
+  : _min_corner(min_extent)
+  {
+    // Currently, only square cells are supported
+    assert((max_extent[0] - min_extent[0]) == (max_extent[1] - min_extent[0]));
+    
+    _delta = max_extent[0] - min_extent[0];
+    _center = _min_corner;
+    for(std::size_t i = 0; i < _center.size(); ++i)
+      _center[i] += 0.5 * _delta;
+  }
+  
+  deflection_angle_taylor_interpolator(const position_vector_type& center,
+                                       T cell_size)
+  : _center(center), _delta(cell_size)
+  {
+    for(std::size_t i = 0; i < _center.size(); ++i)
+      _min_corner[i] = _center[i] - 0.5 * _delta;
+  }
+  
+  template<class Eval_function>
+  void init(Eval_function fn)
+  {
+    eval_values_storage_type corner_values;
+    corner_values[0] = fn({_min_corner[0] + _delta, _min_corner[1] + _delta});
+    corner_values[1] = fn({_min_corner[0],          _min_corner[1] + _delta});
+    corner_values[2] = fn(_min_corner);
+    corner_values[3] = fn({_min_corner[0] + _delta, _min_corner[1]});
+    
+    init(corner_values);
+  }
+  
+  
+  void init(const eval_values_storage_type& corner_values)
+  {
+    
+    T delta_inverse = 1.0 / _delta;
+    T delta_inverse2 = util::square(delta_inverse);
+    T delta_inverse3 = delta_inverse2 * delta_inverse;
+    
+    // Average of the x components
+    _coefficients[0] = 0.25 * (corner_values[0][0] + corner_values[1][0] 
+                             + corner_values[2][0] + corner_values[3][0]);
+   // Average of the y components
+    _coefficients[1] = 0.25 * (corner_values[0][1] + corner_values[1][1] 
+                             + corner_values[2][1] + corner_values[3][1]);
+    
+    // d/dx(alpha_x)
+    _coefficients[2] = 0.125 * delta_inverse * (corner_values[0][0] - corner_values[1][0]
+                                              + corner_values[3][0] - corner_values[2][0]
+                                              + corner_values[2][1] - corner_values[1][1]
+                                              + corner_values[3][1] - corner_values[0][1]);
+    
+    // d/dx (alpha_y) = d/dy (alpha_x)
+    _coefficients[3] = 0.125 * delta_inverse * (corner_values[1][0] - corner_values[2][0]
+                                              + corner_values[0][0] - corner_values[3][0]
+                                              + corner_values[0][1] - corner_values[1][1]
+                                              + corner_values[3][1] - corner_values[2][1]);
+    
+    // d/dy(d/dx(alpha_y))
+    _coefficients[4] = 0.25 * delta_inverse2 * (corner_values[3][1] - corner_values[2][1]
+                                             +  corner_values[1][1] - corner_values[0][1]);
+    
+    // d/dy(d/dx(alpha_x))
+    _coefficients[5] = 0.25 * delta_inverse2 * (corner_values[0][0] - corner_values[1][0]
+                                             +  corner_values[2][0] - corner_values[3][0]);
+    
+    _coefficients[6] = 0.375 * delta_inverse3 * (corner_values[1][0] - corner_values[0][0]
+                                               + corner_values[2][0] - corner_values[3][0]
+                                               + corner_values[3][1] - corner_values[0][1]
+                                               + corner_values[2][1] - corner_values[1][1]);
+    
+    _coefficients[7] = 0.375 * delta_inverse3 * (corner_values[0][0] - corner_values[3][0]
+                                               + corner_values[1][0] - corner_values[2][0]
+                                               + corner_values[2][1] - corner_values[3][1]
+                                               + corner_values[1][1] - corner_values[0][1]);
+  }
+  
+  Vector_type interpolate(const position_vector_type& v) const
+  {
+    Vector_type result;
+    
+    position_vector_type delta = v;
+    util::sub(delta, _center);
+    
+    position_vector_type delta2 = {util::square(delta[0]), util::square(delta[1])};
+    
+    std::array<T, 4> eval_polynomials;
+    eval_polynomials[0] = 0.5 * (delta2[0] - delta2[1]);
+    eval_polynomials[1] = delta[0] * delta[1];
+    eval_polynomials[2] = 0.5 * delta[0] * (delta2[0] / 3.0 - delta2[1]);
+    eval_polynomials[3] = 0.5 * delta[1] * (delta2[0] - delta2[1] / 3.0);
+    
+    result[0] = _coefficients[0] + delta[0] * _coefficients[2] + delta[1] * _coefficients[3]
+      + eval_polynomials[0] * _coefficients[4] + eval_polynomials[1] * _coefficients[5]
+      + eval_polynomials[2] * _coefficients[6] + eval_polynomials[3] * _coefficients[7];
+    
+    result[1] = _coefficients[1] - delta[1] * _coefficients[2] + delta[0] * _coefficients[3]
+      - eval_polynomials[1] * _coefficients[4] + eval_polynomials[0] * _coefficients[5]
+      - eval_polynomials[3] * _coefficients[6] + eval_polynomials[2] * _coefficients[7];
+    
+    return result;
+  }
+  
+private:
+  T _delta;
+  std::array<T, 8> _coefficients;
+  position_vector_type _min_corner;
+  position_vector_type _center;
+};
+
 }
 
 #endif	/* INTERPOLATOR_HPP */

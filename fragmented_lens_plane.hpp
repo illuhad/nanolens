@@ -125,6 +125,9 @@ public:
 private:
   inline util::vector2 get_deflection_correction(const util::vector2& point) const
   {
+    util::vector2 full_disk_contribution = point;
+    util::scale(full_disk_contribution, _sigma_star);
+    
     util::vector2 r_hole = point;
     util::sub(r_hole, _center_of_mass);
     
@@ -140,6 +143,8 @@ private:
       star hole_pseudo_star(_current_fragment_center, -R_squared * _sigma_star);
       hole_pseudo_star.calculate_deflection_angle(point, hole_contribution);
     }
+    
+    util::add(hole_contribution, full_disk_contribution);
 
     return hole_contribution;
   }

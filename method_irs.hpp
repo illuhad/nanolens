@@ -165,7 +165,7 @@ public:
     
     util::scalar magnification_per_ray 
       = 1.0
-      / (this->_config.get_n_rays_per_px() * (util::square((1.0 - sigma)) - util::square(gamma)));
+      / (this->_config.get_n_rays_per_px() * std::abs((util::square(1.0 - sigma) - util::square(gamma))));
     
     scheduler schedule(this->_comm);
     

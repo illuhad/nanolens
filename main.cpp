@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <exception>
 #include "render_engine.hpp"
 #include "timer.hpp"
 #include "system.hpp"
@@ -32,7 +33,7 @@
 
 int main(int argc, char** argv) 
 { 
-  boost::mpi::environment env;
+  boost::mpi::environment env(argc, argv);
   boost::mpi::communicator world;
 
   nanolens::util::master_ostream master_cout(std::cout, 0);
@@ -78,13 +79,36 @@ int main(int argc, char** argv)
   
   master_cout << "Preparing system...\n";
   
-  nanolens::configuration config(world, 0);
-  config.load_from_file("nanolens.xml");
   
-  nanolens::standard_launcher launcher(world);
-  
-  launcher.execute_configuration(config, master_cout);
-  
+  try
+  {
+    nanolens::configuration config(world, 0);
+    
+    std::string config_file = "nanolens.xml";
+    if(argc > 2)
+    {
+      master_cout << "Usage: nanolens [configuration_file]\n"
+                     "  [configuration_file]: An optional argument specifying the path of the\n"
+                     "                        configuration file to be used. If not specified,\n"
+                     "                        \"nanolens.xml\" will be loaded\n";
+      env.abort(0);
+    }
+    if(argc == 2)
+      config_file = argv[1];
+
+    master_cout << "Loading configuration: " << config_file << std::endl;
+    config.load_from_file(config_file);
+
+    nanolens::standard_launcher launcher(world);
+
+    launcher.execute_configuration(config, master_cout);
+  }
+  catch(std::exception& e)
+  {
+    std::cout << "Fatal error: " << e.what() << std::endl;
+    std::cout << "Aborting...\n";
+    env.abort(-1);
+  }
   
   return 0;
 }

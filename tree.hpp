@@ -373,11 +373,11 @@ public:
     }
     _tree_root->init_pseudo_stars();
     
-    util::vector2 grid_size = max_extent;
-    util::sub(grid_size, min_extent);
+    
+    util::vector2 cell_size = {0.5, 0.5};
     
     auto interpolation_cell_constructor = 
-    [this](interpolation_cell& entry, util::vector2 cell_center)
+    [this, cell_size](interpolation_cell& entry, util::vector2 cell_center)
     {
       entry = interpolation_cell();
       
@@ -387,19 +387,24 @@ public:
                               entry.close_lenses,
                               far_cells);
 
-      util::vector2 half_bucket_size = this->_ondemand_grid.get_cell_size();
+      
+      util::vector2 half_bucket_size = cell_size;
       util::scale(half_bucket_size, 0.5);
       
-      util::vector2 bucket_min_extent = cell_center;
-      util::vector2 bucket_max_extent = cell_center;
+//      entry.far_cell_interpolator
+//                = interpolation_cell::interpolator_type(cell_center,
+//                                                        0.01);
       
+      util::vector2 bucket_min_extent = cell_center;
       util::sub(bucket_min_extent, half_bucket_size);
-      util::add(bucket_max_extent, half_bucket_size);
-
-
+      
+      util::vector2 bucket_max_extent = cell_center;
+      util::add(bucket_max_extent, half_bucket_size);     
+      
       entry.far_cell_interpolator
-                = standard_vector2_interpolator(bucket_min_extent,
-                                                bucket_max_extent);
+          = interpolation_cell::interpolator_type(bucket_min_extent,
+                                                  bucket_max_extent);
+      
       entry.far_cell_interpolator.init(
       [&far_cells, this](const util::vector2& pos) -> util::vector2
       {
@@ -416,16 +421,20 @@ public:
 
     };
     
-    _ondemand_grid = ondemand_grid_type({0.5, 0.5}, interpolation_cell_constructor);
-//    std::array<std::size_t, 2> num_grid_buckets = {static_cast<std::size_t>(grid_size[0] / 0.5),
-//                                                   static_cast<std::size_t>(grid_size[1] / 0.5)};
-//    
-    //std::cout << "max = " << max_extent[0] << " " << max_extent[1] << std::endl;
-    //std::cout << "min = " << min_extent[0] << " " << min_extent[1] << std::endl;
-    //std::cout << "grid size = " << num_grid_buckets[0] << " " << num_grid_buckets[1] << std::endl;
-    //_tree_preevaluation_grid = preevaluation_grid_type(min_extent, max_extent, num_grid_buckets);
-    //preevaluate_tree();
     
+    util::vector2 cache_grid_min_extent = min_extent;
+    util::vector2 cache_grid_max_extent = max_extent;
+    
+    std::array<std::size_t, 2> num_cells = 
+          {static_cast<std::size_t>((cache_grid_max_extent[0] - cache_grid_min_extent[0]) / cell_size[0]),
+           static_cast<std::size_t>((cache_grid_max_extent[1] - cache_grid_min_extent[1]) / cell_size[1])};
+    
+    _interpolation_cell_cache = std::shared_ptr<interpolation_cell_cache_type>(
+                  new interpolation_cell_cache_type(cache_grid_min_extent, 
+                                                    cache_grid_max_extent, 
+                                                    num_cells, 
+                                                    interpolation_cell_constructor,
+                                                    2 * num_cells[1]));
     
   }
   
@@ -438,7 +447,7 @@ public:
 private:
   inline util::vector2 get_deflection_from_grid(const util::vector2& pos) const
   {
-    const interpolation_cell& grid_entry = _ondemand_grid[pos];
+    const interpolation_cell& grid_entry = (*_interpolation_cell_cache)[pos];
     
     util::vector2 result = {0.0, 0.0};
     
@@ -530,12 +539,14 @@ private:
   
   struct interpolation_cell
   {
+    //typedef deflection_angle_taylor_interpolator<util::scalar, util::vector2> interpolator_type;
+    typedef standard_vector2_interpolator interpolator_type;
+    
     std::vector<const star*> close_lenses;
-    standard_vector2_interpolator far_cell_interpolator;
+    interpolator_type far_cell_interpolator;
   };
   
-  //typedef util::grid2d<util::scalar, tree_preevaluation_entry> preevaluation_grid_type;
-  typedef util::cached_ondemand_grid<util::scalar,interpolation_cell,2,1> ondemand_grid_type;
+  typedef util::buffered_grid_cache<util::scalar, 2, interpolation_cell> interpolation_cell_cache_type;
   
   void find_contributing_cells(const util::vector2& pos,
                                tree_impl_::cell_id cell_idx,
@@ -576,51 +587,8 @@ private:
     }
   }
   
-//  void preevaluate_tree()
-//  {
-//    for(std::size_t x = 0; x < _tree_preevaluation_grid.get_total_num_buckets(0); ++x)
-//      for(std::size_t y = 0; y < _tree_preevaluation_grid.get_total_num_buckets(1); ++y)
-//      {
-//        preevaluation_grid_type::index_type grid_entry_idx = {x, y};
-//        
-//        util::vector2 cell_position =
-//                _tree_preevaluation_grid.get_central_position_of_bucket(grid_entry_idx);
-//        
-//        std::vector<tree_impl_::cell_id> far_cells;
-//        find_contributing_cells(cell_position,
-//                                _root_descriptor.get_cell_id(),
-//                                _tree_preevaluation_grid[grid_entry_idx].close_lenses,
-//                                far_cells);
-//          
-//        util::vector2 bucket_min_extent = 
-//          _tree_preevaluation_grid.get_min_position_of_bucket(grid_entry_idx);
-//        
-//        util::vector2 bucket_max_extent = bucket_min_extent;
-//        util::add(bucket_max_extent, _tree_preevaluation_grid.get_bucket_size());
-//          
-//        
-//        _tree_preevaluation_grid[grid_entry_idx].far_cell_interpolator
-//                  = standard_vector2_interpolator(bucket_min_extent,
-//                                                  bucket_max_extent);
-//        _tree_preevaluation_grid[grid_entry_idx].far_cell_interpolator.init(
-//        [&far_cells, this](const util::vector2& pos) -> util::vector2
-//        {
-//          util::vector2 deflection = {0.0, 0.0};
-//          for(tree_impl_::cell_id id : far_cells)
-//          {
-//            util::vector2 contribution;
-//            this->_cell_db[id].get_pseudo_star().calculate_deflection_angle(pos, contribution);
-//            util::add(deflection, contribution);
-//          }
-//          return deflection;
-//        }
-//        );
-//        
-//      }
-//  }
   
-  
-  mutable ondemand_grid_type _ondemand_grid;
+  mutable std::shared_ptr<interpolation_cell_cache_type> _interpolation_cell_cache;
   //preevaluation_grid_type _tree_preevaluation_grid;
   grid_cell::this_descriptor _root_descriptor;
   grid_cell* _tree_root;

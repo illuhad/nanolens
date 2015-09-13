@@ -12,26 +12,27 @@
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/magnification.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/mesh.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/launch.hpp</file>
-            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/method_irs.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/lens_plane.hpp</file>
+            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/method_irs.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/numeric.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/method.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/lensing_jacobian.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/plane.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/system.hpp</file>
+            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/interpolator.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/fits.hpp</file>
-            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/fragmented_lens_plane.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/status.hpp</file>
+            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/fragmented_lens_plane.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/timer.hpp</file>
+            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/scheduler.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/screen.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/star_generator.hpp</file>
-            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/scheduler.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/status_handler.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/input.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/util.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/render_engine.hpp</file>
-            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/image_finder.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/star.hpp</file>
+            <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/image_finder.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/observer_plane.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/tree.hpp</file>
             <file>file:/home/aksel/store/src/cpp/nanolens/nanolens/main.cpp</file>

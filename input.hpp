@@ -119,6 +119,7 @@ public:
     if(_comm.rank() == _master_rank)
     {
       boost::property_tree::xml_parser::read_xml(filename, _tree);
+      
 
       _screen_pos = get_vector("nanolens.screen.position", util::vector2({0.0, 0.0}));
       _screen_size = get_vector("nanolens.screen.physical_size", util::vector2({10.0, 10.0}));
