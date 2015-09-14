@@ -127,7 +127,7 @@ public:
       assert(_max_extent[i] > _min_extent[i]);
     
     if(EdgeLayer)
-      for(std::size_t& buckets : num_buckets)
+      for(std::size_t& buckets : _num_buckets)
         buckets += 2;
     
     _interior_num_buckets = _num_buckets;
