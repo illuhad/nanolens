@@ -4,6 +4,7 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>convolution.hpp</itemPath>
       <itemPath>fits.hpp</itemPath>
       <itemPath>fragmented_lens_plane.hpp</itemPath>
       <itemPath>geometry.hpp</itemPath>
@@ -80,6 +81,8 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
+      <item path="convolution.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="fits.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="fragmented_lens_plane.hpp" ex="false" tool="3" flavor2="0">
@@ -175,6 +178,8 @@
           </linkerLibItems>
         </linkerTool>
       </compileType>
+      <item path="convolution.hpp" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="fits.hpp" ex="false" tool="3" flavor2="0">
       </item>
       <item path="fragmented_lens_plane.hpp" ex="false" tool="3" flavor2="0">

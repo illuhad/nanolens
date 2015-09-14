@@ -174,6 +174,7 @@ private:
     }
     util::scale(_center_of_mass, 1.0 / _total_mass);
     
+    _current_fragment = nullptr;
     
     _current_fragment = lens_plane_fragment_ptr(new lens_plane_fragment(stars, 
                                                                         _settings, 

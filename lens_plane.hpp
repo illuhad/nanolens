@@ -154,7 +154,9 @@ public:
     }
     //util::scalar area_radius_squared = 
     //  avg_radius_squared / util::square(calculate_einstein_radius(1.0,1.0,2.0));
-    _sigma_star = N_stars * mean_mass / avg_radius_squared;
+    if(!deflectors.empty())
+      _sigma_star = N_stars * mean_mass / avg_radius_squared;
+    else _sigma_star = 0.0;
 
 
     this->_smooth_matter_fraction = _sigma_smooth / (_sigma_star + _sigma_smooth);

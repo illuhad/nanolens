@@ -326,41 +326,10 @@ public:
     _root_descriptor(0, nullptr)
   {
 
-    util::vector2 min_extent = {0.0, 0.0};
-    util::vector2 max_extent = {0.0, 0.0};
-    if(!stars.empty())
-    {
-      util::scalar scalar_max = std::numeric_limits<util::scalar>::max();
-      util::scalar scalar_min = std::numeric_limits<util::scalar>::lowest();      
-      
-      min_extent = {scalar_max, scalar_max};
-      max_extent = {scalar_min, scalar_min};
-      
-      for(const star& s : stars)
-      {
-        const util::vector2& pos = s.get_position();
-        for(std::size_t i = 0; i < 2; ++i)
-        {
-          if(pos[i] < min_extent[0])
-          {
-            min_extent[0] = pos[i];
-            min_extent[1] = pos[i];
-          }
-          if(pos[i] > max_extent[0])
-          {
-            max_extent[0] = pos[i];
-            max_extent[1] = pos[i];
-          }
-        }
-      }
-    }
-          
-    for(std::size_t i = 0; i < 2; ++i)
-    {
-      max_extent[i] += 0.01;
-      min_extent[i] -= 0.01;
-    }
-
+    util::vector2 min_extent;
+    util::vector2 max_extent;
+    get_extents_of_star_distribution(stars, min_extent, max_extent);
+    
     tree_impl_::cell_id root_id = _cell_db.create_cell();
     _root_descriptor = grid_cell::this_descriptor(root_id, &_cell_db);
     _cell_db[root_id] = grid_cell(min_extent, max_extent, &_cell_db);
@@ -379,72 +348,7 @@ public:
     auto interpolation_cell_constructor = 
     [this, cell_size](interpolation_cell& entry, util::vector2 cell_center)
     {
-      entry = interpolation_cell();
-      
-      std::vector<tree_impl_::cell_id> far_cells;
-      this->find_contributing_cells(cell_center,
-                             this->_root_descriptor.get_cell_id(),
-                              entry.close_lenses,
-                              far_cells);
-
-      
-      util::vector2 half_bucket_size = cell_size;
-      util::scale(half_bucket_size, 0.5);
-      
-//      entry.far_cell_interpolator
-//                = interpolation_cell::interpolator_type(cell_center,
-//                                                        0.01);
-      
-      util::vector2 bucket_min_extent = cell_center;
-      util::sub(bucket_min_extent, half_bucket_size);
-      
-      util::vector2 bucket_max_extent = cell_center;
-      util::add(bucket_max_extent, half_bucket_size);
-      
-      std::array<std::size_t, 2> num_cells = {interpolation_cell::num_interpolators,
-                                              interpolation_cell::num_interpolators};
-      
-      entry.far_cell_interpolator_grid = interpolation_cell::interpolator_grid_type(bucket_min_extent,
-                                                                                    bucket_max_extent,
-                                                                                    num_cells);
-      
-      util::vector2 interpolation_cell_size = entry.far_cell_interpolator_grid.get_bucket_size();
-      
-      util::vector2 interpolation_cell_min_extent = bucket_min_extent;
-      util::vector2 interpolation_cell_max_extent = bucket_min_extent;
-      util::add(interpolation_cell_max_extent, interpolation_cell_size);
-      
-      for(std::size_t i = 0; i < interpolation_cell::num_interpolators; ++i)
-      {
-        interpolation_cell_min_extent[1] = bucket_min_extent[1];
-        interpolation_cell_max_extent[1] = bucket_min_extent[1] + interpolation_cell_size[1]; 
-        for(std::size_t j = 0; j < interpolation_cell::num_interpolators; ++j)
-        {
-
-          entry.far_cell_interpolators[i][j]
-              = interpolation_cell::interpolator_type(interpolation_cell_min_extent,
-                                                      interpolation_cell_max_extent);
-
-          entry.far_cell_interpolators[i][j].init(
-          [&far_cells, this](const util::vector2& pos) -> util::vector2
-          {
-            util::vector2 deflection = {0.0, 0.0};
-            for(tree_impl_::cell_id id : far_cells)
-            {
-              util::vector2 contribution;
-              this->_cell_db[id].get_pseudo_star().calculate_deflection_angle(pos, contribution);
-              util::add(deflection, contribution);
-            }
-            return deflection;
-          }
-          );
-          interpolation_cell_min_extent[1] += interpolation_cell_size[1];
-          interpolation_cell_max_extent[1] += interpolation_cell_size[1];
-        }
-        interpolation_cell_min_extent[0] += interpolation_cell_size[0];
-        interpolation_cell_max_extent[0] += interpolation_cell_size[0];
-      }
-
+      init_cache_grid_entry(entry, cell_center, cell_size);
     };
     
     
@@ -455,6 +359,10 @@ public:
           {static_cast<std::size_t>((cache_grid_max_extent[0] - cache_grid_min_extent[0]) / cell_size[0]),
            static_cast<std::size_t>((cache_grid_max_extent[1] - cache_grid_min_extent[1]) / cell_size[1])};
     
+    for(std::size_t i = 0; i < num_cells.size(); ++i)
+    if(num_cells[i] == 0)
+      num_cells[i] = 1;
+
     _interpolation_cell_cache = std::shared_ptr<interpolation_cell_cache_type>(
                   new interpolation_cell_cache_type(cache_grid_min_extent, 
                                                     cache_grid_max_extent, 
@@ -492,6 +400,123 @@ private:
     util::add(result, interpolated_contribution);
     
     return result;
+  }
+  
+  inline void init_cache_grid_entry(interpolation_cell& entry, 
+                                    const util::vector2& cell_center,
+                                    const util::vector2& cell_size) const
+  {
+
+    std::vector<tree_impl_::cell_id> far_cells;
+    this->find_contributing_cells(cell_center,
+                           this->_root_descriptor.get_cell_id(),
+                            entry.close_lenses,
+                            far_cells);
+
+
+    util::vector2 half_bucket_size = cell_size;
+    util::scale(half_bucket_size, 0.5);
+
+//      entry.far_cell_interpolator
+//                = interpolation_cell::interpolator_type(cell_center,
+//                                                        0.01);
+
+    util::vector2 bucket_min_extent = cell_center;
+    util::sub(bucket_min_extent, half_bucket_size);
+
+    util::vector2 bucket_max_extent = cell_center;
+    util::add(bucket_max_extent, half_bucket_size);
+
+    std::array<std::size_t, 2> num_cells = {interpolation_cell::num_interpolators,
+                                            interpolation_cell::num_interpolators};
+
+    entry.far_cell_interpolator_grid = interpolation_cell::interpolator_grid_type(bucket_min_extent,
+                                                                                  bucket_max_extent,
+                                                                                  num_cells);
+
+    util::vector2 interpolation_cell_size = entry.far_cell_interpolator_grid.get_bucket_size();
+
+    util::vector2 interpolation_cell_min_extent = bucket_min_extent;
+    util::vector2 interpolation_cell_max_extent = bucket_min_extent;
+    util::add(interpolation_cell_max_extent, interpolation_cell_size);
+
+    for(std::size_t i = 0; i < interpolation_cell::num_interpolators; ++i)
+    {
+      interpolation_cell_min_extent[1] = bucket_min_extent[1];
+      interpolation_cell_max_extent[1] = bucket_min_extent[1] + interpolation_cell_size[1]; 
+      for(std::size_t j = 0; j < interpolation_cell::num_interpolators; ++j)
+      {
+
+        entry.far_cell_interpolators[i][j]
+            = interpolation_cell::interpolator_type(interpolation_cell_min_extent,
+                                                    interpolation_cell_max_extent);
+
+        entry.far_cell_interpolators[i][j].init(
+        [&far_cells, this](const util::vector2& pos) -> util::vector2
+        {
+          util::vector2 deflection = {0.0, 0.0};
+          for(tree_impl_::cell_id id : far_cells)
+          {
+            util::vector2 contribution;
+            this->_cell_db[id].get_pseudo_star().calculate_deflection_angle(pos, contribution);
+            util::add(deflection, contribution);
+          }
+          return deflection;
+        });
+        
+        interpolation_cell_min_extent[1] += interpolation_cell_size[1];
+        interpolation_cell_max_extent[1] += interpolation_cell_size[1];
+      }
+      interpolation_cell_min_extent[0] += interpolation_cell_size[0];
+      interpolation_cell_max_extent[0] += interpolation_cell_size[0];
+    }
+  }
+  
+  void get_extents_of_star_distribution(const std::vector<star>& stars,
+                                        util::vector2& min_extent,
+                                        util::vector2& max_extent) const
+  {
+    min_extent = {0.0, 0.0};
+    max_extent = {0.0, 0.0};
+    
+    if(!stars.empty())
+    {
+      util::scalar scalar_max = std::numeric_limits<util::scalar>::max();
+      util::scalar scalar_min = std::numeric_limits<util::scalar>::lowest();      
+      
+      min_extent = {scalar_max, scalar_max};
+      max_extent = {scalar_min, scalar_min};
+      
+      for(const star& s : stars)
+      {
+        const util::vector2& pos = s.get_position();
+        for(std::size_t i = 0; i < 2; ++i)
+        {
+          if(pos[i] < min_extent[i])
+            min_extent[i] = pos[i];
+          
+          if(pos[i] > max_extent[i])
+            max_extent[i] = pos[i];
+        }
+      }
+    }
+    
+    // Find a square from min and max extent
+    util::vector2 center = min_extent;
+    util::add(center, max_extent);
+    util::scale(center, 0.5);
+    
+    util::vector2 side_lengths = max_extent;
+    util::sub(side_lengths, min_extent);
+
+    // add 0.02 to the side lengths to avoid having stars at the border
+    util::scalar max_side_length = std::max(side_lengths[0], side_lengths[1]) + 0.02;
+          
+    for(std::size_t i = 0; i < 2; ++i)
+    {
+      max_extent[i] = center[i] + 0.5 * max_side_length;
+      min_extent[i] = center[i] - 0.5 * max_side_length;
+    }
   }
   
   inline util::vector2 get_deflection_of_cell_by_tree_traversal(const grid_cell& cell, 
@@ -582,6 +607,9 @@ private:
     typedef util::grid_translator<util::scalar,2,false> interpolator_grid_type;
     
     interpolator_grid_type far_cell_interpolator_grid;
+    
+    interpolation_cell() = default;
+  
   };
   
   typedef util::buffered_grid_cache<util::scalar, 2, interpolation_cell> interpolation_cell_cache_type;

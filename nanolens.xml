@@ -1,33 +1,34 @@
 <nanolens>
   <screen>
     <position x="0.0" y="0.0" />
-    <physical_size x="70.0" y="7.0"/>
-    <num_pixels x="2000" y="200" />
+    <physical_size x="7000.0" y="7.0"/>
+    <num_pixels x="200000" y="200" />
   </screen>
   <system>
     <lens_plane type="fragmented_microlensing_lens_plane">
       <deflection_engine type="tree">
         <opening_angle>0.5</opening_angle>
       </deflection_engine>
-      <star_db_cell_size x="20.0" y="20.0" />
+      <star_db_cell_size x="400.0" y="5000.0" />
       <star_db_expected_num_cells>60000</star_db_expected_num_cells>
       <lens_plane_y_center>0.0</lens_plane_y_center>
       <fragment_size>3.0</fragment_size>
-      <fragment_star_inclusion_radius>100.0</fragment_star_inclusion_radius>
+      <fragment_star_inclusion_radius>400.0</fragment_star_inclusion_radius>
       <shear>0.0</shear>
-      <sigma_smooth>0.1</sigma_smooth>
+      <shear_rotation_angle>0.0</shear_rotation_angle>
+      <sigma_smooth>0.0</sigma_smooth>
       <!--<star_generator type="from_file" filename="nanolens_star_log.dat"/>-->
-      <star_generator type="from_random_distribution" num_stars="10000000">
-        <x distribution="uniform" min="-600" max="600" />
-        <y distribution="uniform" min="-600" max="600" />
+      <star_generator type="from_random_distribution" num_stars="7000000">
+        <x distribution="uniform" min="-8000" max="8000" />
+        <y distribution="uniform" min="-1000" max="1000" />
         <mass distribution="uniform" min="0.5" max="1.2" />
 	<!--<circularize radius="100.0" />-->
       </star_generator>
     </lens_plane>
   </system>
   <method type="inverse_ray_shooting">
-    <num_rays_per_pixel>100.0</num_rays_per_pixel>
+    <num_rays_per_pixel>200.0</num_rays_per_pixel>
   </method>
   <fits_output>output.fits</fits_output>
-  <raw_output>output.raw</raw_output>
+  <!--<raw_output>output.raw</raw_output>-->
 </nanolens>

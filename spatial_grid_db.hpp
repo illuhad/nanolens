@@ -90,8 +90,10 @@ public:
     void set_file_handle(const std::shared_ptr<std::fstream>& handle)
     {
       _file_handle = handle;
-      _serializer = std::shared_ptr<boost::archive::binary_oarchive>(
-          new boost::archive::binary_oarchive(*_file_handle));
+      
+      if(handle != nullptr)
+        _serializer = std::shared_ptr<boost::archive::binary_oarchive>(
+            new boost::archive::binary_oarchive(*_file_handle));
     }
     
     const std::shared_ptr<boost::archive::binary_oarchive>& get_serializer() const
@@ -138,6 +140,22 @@ public:
     _master_rank(master_rank)
   {
     
+  }
+  
+  void begin_transaction()
+  {
+    for(auto& entry : _storage_map)
+    {
+      if(!entry.second.get_file_handle()->is_open())
+      {
+        std::ofstream file_handle(entry.second.get_filename().c_str(),
+                                  std::ios::binary | std::ios::out | std::ios::app);
+        
+        // This will update the serializer object as well
+        entry.second.set_file_handle(file_handle);
+        
+      }
+    }
   }
   
   // Inserts only data from the master process
@@ -192,7 +210,7 @@ public:
       for(const auto& element : _storage_map)
       {
         if(element.second.get_file_handle())
-          element.second.get_file_handle()->flush();
+          element.second.get_file_handle()->close();
       }
     }
     boost::mpi::broadcast(_comm, _storage_map, _master_rank);
