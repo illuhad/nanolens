@@ -181,7 +181,7 @@ public:
     
     // the dummy counter prevents the compiler from optimizing stuff away
     std::size_t dummy_counter = 0;
-    schedule.autoscaled_run(n_rays_x, [&](std::size_t test_ray_index, std::size_t num_tests)
+    schedule.autosized_run(n_rays_x, [&](std::size_t test_ray_index, std::size_t num_tests)
     {
       util::vector2 ray_position = shooting_region.get_region_center();
       ray_position[1] = shooting_region.get_region_min_corner()[1];
@@ -194,7 +194,7 @@ public:
       if(pixel_grid_translator.contains_point(impact_position))
         ++dummy_counter;
       
-    });
+    }, 2.0);
       
     
     handler(status_info("Scheduling complete", &schedule, ""));

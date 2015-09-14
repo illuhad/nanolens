@@ -55,10 +55,13 @@ public:
   }
   
   template<class Function>
-  void autoscaled_run(std::size_t num_job_entities, Function individual_test_job)
+  void autosized_run(std::size_t num_job_entities, 
+                     Function individual_test_job,
+                     util::scalar target_benchmark_runtime = 0.5)
   {
+    assert(target_benchmark_runtime > 0);
+    
     std::size_t benchmark_size = 100;
-
 
     util::timer t;
 
@@ -69,9 +72,9 @@ public:
       for(std::size_t i = 0; i < benchmark_size; ++i)
         individual_test_job(i, benchmark_size);
     }
-    while(t.stop() < 0.5);
+    while(t.stop() < target_benchmark_runtime);
     
-    boost::mpi::broadcast(_comm, benchmark_size, 0.5);
+    boost::mpi::broadcast(_comm, benchmark_size, 0);
     
     run(num_job_entities, [benchmark_size, &individual_test_job]()
     {

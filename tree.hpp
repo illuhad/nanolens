@@ -379,6 +379,27 @@ public:
   }
   
 private:
+    
+  struct interpolation_cell
+  {
+    typedef standard_vector2_interpolator interpolator_type;
+    //typedef standard_vector2_interpolator interpolator_type;
+    
+    static const std::size_t num_interpolators = 2;
+    
+    std::array<std::array<interpolator_type, num_interpolators>, num_interpolators> far_cell_interpolators;
+    
+    std::vector<const star*> close_lenses;
+    
+    typedef util::grid_translator<util::scalar,2,false> interpolator_grid_type;
+    
+    interpolator_grid_type far_cell_interpolator_grid;
+    
+    interpolation_cell() = default;
+  
+  };
+  
+  
   inline util::vector2 get_deflection_from_grid(const util::vector2& pos) const
   {
     const interpolation_cell& grid_entry = (*_interpolation_cell_cache)[pos];
@@ -592,32 +613,13 @@ private:
           print_cell_coordinates(ostr, _cell_db[cell].get_sub_cells()[x][y]);
     
   }
-  
-  struct interpolation_cell
-  {
-    typedef standard_vector2_interpolator interpolator_type;
-    //typedef standard_vector2_interpolator interpolator_type;
-    
-    static const std::size_t num_interpolators = 2;
-    
-    std::array<std::array<interpolator_type, num_interpolators>, num_interpolators> far_cell_interpolators;
-    
-    std::vector<const star*> close_lenses;
-    
-    typedef util::grid_translator<util::scalar,2,false> interpolator_grid_type;
-    
-    interpolator_grid_type far_cell_interpolator_grid;
-    
-    interpolation_cell() = default;
-  
-  };
-  
+
   typedef util::buffered_grid_cache<util::scalar, 2, interpolation_cell> interpolation_cell_cache_type;
   
   void find_contributing_cells(const util::vector2& pos,
                                tree_impl_::cell_id cell_idx,
                                std::vector<const star*>& close_lenses,
-                               std::vector<tree_impl_::cell_id>& far_cells)
+                               std::vector<tree_impl_::cell_id>& far_cells) const
   {
     const grid_cell& cell = _cell_db[cell_idx];
     
