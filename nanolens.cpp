@@ -72,7 +72,7 @@ int main(int argc, char** argv)
                                                                                 
 
   
-  master_cout << "nanolens version 2.96e-19 launching..." << std::endl;
+  master_cout << "nanolens version 2.97e-19 launching..." << std::endl;
   master_cout << "Using " << world.size() << " process(es).\n";
   
   std::vector<nanolens::star> stars;
