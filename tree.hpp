@@ -26,11 +26,6 @@
 #include "numeric.hpp"
 #include "input.hpp"
 #include "interpolator.hpp"
-#include <boost/geometry.hpp>
-#include <boost/geometry/geometries/point.hpp>
-#include <boost/geometry/geometries/box.hpp>
-
-#include <boost/geometry/index/rtree.hpp>
 
 namespace nanolens{
 
@@ -343,7 +338,7 @@ public:
     _tree_root->init_pseudo_stars();
     
     
-    util::vector2 cell_size = {0.5, 0.5};
+    util::vector2 cell_size = {0.75, 0.75};
     
     auto interpolation_cell_constructor = 
     [this, cell_size](interpolation_cell& entry, util::vector2 cell_center)
@@ -385,7 +380,7 @@ private:
     typedef standard_vector2_interpolator interpolator_type;
     //typedef standard_vector2_interpolator interpolator_type;
     
-    static const std::size_t num_interpolators = 2;
+    static const std::size_t num_interpolators = 3;
     
     std::array<std::array<interpolator_type, num_interpolators>, num_interpolators> far_cell_interpolators;
     
@@ -438,10 +433,6 @@ private:
     util::vector2 half_bucket_size = cell_size;
     util::scale(half_bucket_size, 0.5);
 
-//      entry.far_cell_interpolator
-//                = interpolation_cell::interpolator_type(cell_center,
-//                                                        0.01);
-
     util::vector2 bucket_min_extent = cell_center;
     util::sub(bucket_min_extent, half_bucket_size);
 
@@ -472,25 +463,39 @@ private:
             = interpolation_cell::interpolator_type(interpolation_cell_min_extent,
                                                     interpolation_cell_max_extent);
 
-        entry.far_cell_interpolators[i][j].init(
-        [&far_cells, this](const util::vector2& pos) -> util::vector2
-        {
-          util::vector2 deflection = {0.0, 0.0};
-          for(tree_impl_::cell_id id : far_cells)
-          {
-            util::vector2 contribution;
-            this->_cell_db[id].get_pseudo_star().calculate_deflection_angle(pos, contribution);
-            util::add(deflection, contribution);
-          }
-          return deflection;
-        });
-        
+      
         interpolation_cell_min_extent[1] += interpolation_cell_size[1];
         interpolation_cell_max_extent[1] += interpolation_cell_size[1];
       }
       interpolation_cell_min_extent[0] += interpolation_cell_size[0];
       interpolation_cell_max_extent[0] += interpolation_cell_size[0];
     }
+    
+    // We use the grid_bulk_initializer to setup the interpolators, because
+    // it forces adjacent interpolators to share evaluations of the interpolated
+    // function. Since we are interpolating the far away cell contributions which
+    // typically boil down to ~100 evaluations of multipole expansions of 6th order,
+    // this can save us quite some computational effort.
+    interpolator_grid_bulk_initializer
+    <
+      interpolation_cell::interpolator_type, 
+      interpolation_cell::num_interpolators
+    > initializer;
+    initializer.shared_border_init(entry.far_cell_interpolators, 
+      [&far_cells, this](const util::vector2& pos) -> util::vector2
+      {
+        util::vector2 deflection = {0.0, 0.0};
+        for(tree_impl_::cell_id id : far_cells)
+        {
+          util::vector2 contribution;
+          this->_cell_db[id].get_pseudo_star().calculate_deflection_angle(pos, contribution);
+          util::add(deflection, contribution);
+        }
+        return deflection;
+      }
+    );
+    
+    
   }
   
   void get_extents_of_star_distribution(const std::vector<star>& stars,

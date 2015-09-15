@@ -29,11 +29,15 @@ template<typename T, typename Coordinate_type>
 class bicubic_interpolator
 {
 public:
-  typedef std::array<Coordinate_type, 2> vector_type;
+  typedef std::array<Coordinate_type, 2> position_vector_type;
   typedef std::array<T, 16> eval_values_storage_type;
+  typedef util::matrix_nxn<T, 4> eval_values_matrix_type;
+  
+  static constexpr unsigned num_samples_x = 4;
+  static constexpr unsigned num_samples_y = 4;
   
   bicubic_interpolator() = default;
-  bicubic_interpolator(vector_type min_extent, vector_type max_extent)
+  bicubic_interpolator(position_vector_type min_extent, position_vector_type max_extent)
   : _min_extent(min_extent)
   {
     _area_size = max_extent;
@@ -45,9 +49,9 @@ public:
         _bicubic_interpolation_coefficients[i][j] = T();
   }
 
-  T interpolate(const vector_type& v) const
+  T interpolate(const position_vector_type& v) const
   {
-    vector_type relative_pos = v;
+    position_vector_type relative_pos = v;
     
     for(std::size_t i=0; i < 2; ++i)
     {
@@ -62,16 +66,16 @@ public:
   void foreach_evaluation_point(Function fn) const
   {
     unsigned eval_point_id = 0;
-    for(std::size_t i = 0; i < 4; ++i)
-      for(std::size_t j = 0; j < 4; ++j)
+    for(unsigned i = 0; i < 4; ++i)
+      for(unsigned j = 0; j < 4; ++j)
       {
-        vector_type position = _min_extent;
+        position_vector_type position = _min_extent;
         //position[0] += (static_cast<int>(i) - 1) * _area_size[0];
         //position[1] += (static_cast<int>(j) - 1) * _area_size[1];
         
         position[0] += static_cast<int>(i) * _area_size[0] / 3.0;
         position[1] += static_cast<int>(j) * _area_size[1] / 3.0;
-        fn(position, eval_point_id);
+        fn(position, eval_point_id, i, j);
         
         ++eval_point_id;
       }
@@ -81,15 +85,13 @@ public:
   template<class Eval_function>
   void init(Eval_function fn)
   {
-    util::matrix_nxn<T, 4> p;
+    eval_values_matrix_type p;
      
     for(std::size_t i = 0; i < 4; ++i)
       for(std::size_t j = 0; j < 4; ++j)
       {
-        vector_type position = _min_extent;
-        //position[0] += (static_cast<int>(i) - 1) * _area_size[0];
-        //position[1] += (static_cast<int>(j) - 1) * _area_size[1];
-        
+        position_vector_type position = _min_extent;
+
         position[0] += static_cast<int>(i) * _area_size[0] / 3.0;
         position[1] += static_cast<int>(j) * _area_size[1] / 3.0;
         p[i][j] = fn(position);
@@ -100,7 +102,7 @@ public:
   
   inline void init(const eval_values_storage_type& eval)
   {
-    util::matrix_nxn<T, 4> eval_matrix;
+    eval_values_matrix_type eval_matrix;
     
     unsigned array_pos = 0;
     for(unsigned i=0; i < 4; ++i)
@@ -113,33 +115,54 @@ public:
     init(eval_matrix);
   }
   
-  inline void init(const util::matrix_nxn<T, 4>& p)
+  
+  /// Initializes the interpolator object by calculating the bicubic
+  /// interpolation coefficients.
+  /// @param p A 4x4 matrix containing the function values at the evaluation
+  /// positions.
+  inline void init(const eval_values_matrix_type& p)
   {
     util::matrix_nxn<T, 4>& a = this->_bicubic_interpolation_coefficients;
     
-    a[0][0] = p[1][1];
-    a[0][1]= -.5*p[1][0] + .5*p[1][2];
-    a[0][2] = p[1][0] - 2.5*p[1][1] + 2*p[1][2] - .5*p[1][3];
-    a[0][3] = -.5*p[1][0] + 1.5*p[1][1] - 1.5*p[1][2] + .5*p[1][3];
-    a[1][0] = -.5*p[0][1] + .5*p[2][1];
-    a[1][1] = .25*p[0][0] - .25*p[0][2] - .25*p[2][0] + .25*p[2][2];
-    a[1][2] = -.5*p[0][0] + 1.25*p[0][1] - p[0][2] + .25*p[0][3] + .5*p[2][0] - 1.25*p[2][1] + p[2][2] - .25*p[2][3];
-    a[1][3] = .25*p[0][0] - .75*p[0][1] + .75*p[0][2] - .25*p[0][3] - .25*p[2][0] + .75*p[2][1] - .75*p[2][2] + .25*p[2][3];
-    a[2][0] = p[0][1] - 2.5*p[1][1] + 2*p[2][1] - .5*p[3][1];
-    a[2][1] = -.5*p[0][0] + .5*p[0][2] + 1.25*p[1][0] - 1.25*p[1][2] - p[2][0] + p[2][2] + .25*p[3][0] - .25*p[3][2];
-    a[2][2] = p[0][0] - 2.5*p[0][1] + 2*p[0][2] - .5*p[0][3] - 2.5*p[1][0] + 6.25*p[1][1] - 5*p[1][2] + 1.25*p[1][3] + 2*p[2][0] - 5*p[2][1] + 4*p[2][2] - p[2][3] - .5*p[3][0] + 1.25*p[3][1] - p[3][2] + .25*p[3][3];
-    a[2][3] = -.5*p[0][0] + 1.5*p[0][1] - 1.5*p[0][2] + .5*p[0][3] + 1.25*p[1][0] - 3.75*p[1][1] + 3.75*p[1][2] - 1.25*p[1][3] - p[2][0] + 3*p[2][1] - 3*p[2][2] + p[2][3] + .25*p[3][0] - .75*p[3][1] + .75*p[3][2] - .25*p[3][3];
-    a[3][0] = -.5*p[0][1] + 1.5*p[1][1] - 1.5*p[2][1] + .5*p[3][1];
-    a[3][1] = .25*p[0][0] - .25*p[0][2] - .75*p[1][0] + .75*p[1][2] + .75*p[2][0] - .75*p[2][2] - .25*p[3][0] + .25*p[3][2];
-    a[3][2] = -.5*p[0][0] + 1.25*p[0][1] - p[0][2] + .25*p[0][3] + 1.5*p[1][0] - 3.75*p[1][1] + 3*p[1][2] - .75*p[1][3] - 1.5*p[2][0] + 3.75*p[2][1] - 3*p[2][2] + .75*p[2][3] + .5*p[3][0] - 1.25*p[3][1] + p[3][2] - .25*p[3][3];
-    a[3][3] = .25*p[0][0] - .75*p[0][1] + .75*p[0][2] - .25*p[0][3] - .75*p[1][0] + 2.25*p[1][1] - 2.25*p[1][2] + .75*p[1][3] + .75*p[2][0] - 2.25*p[2][1] + 2.25*p[2][2] - .75*p[2][3] - .25*p[3][0] + .75*p[3][1] - .75*p[3][2] + .25*p[3][3];
+    a[0][0] =        p[1][1];
+    a[0][1] = -0.5 * p[1][0] + 0.5 * p[1][2];
+    a[0][2] =        p[1][0] - 2.5 * p[1][1] + 2   * p[1][2] - 0.5 * p[1][3];
+    a[0][3] = -0.5 * p[1][0] + 1.5 * p[1][1] - 1.5 * p[1][2] + 0.5 * p[1][3];
+    a[1][0] = -0.5 * p[0][1] + 0.5 * p[2][1];
+    a[1][1] = 0.25 * p[0][0] - 0.25* p[0][2] - 0.25* p[2][0] + 0.25* p[2][2];
+    a[1][2] = -0.5 * p[0][0] + 1.25* p[0][1] -       p[0][2] + 0.25* p[0][3] 
+              +0.5 * p[2][0] - 1.25* p[2][1] +       p[2][2] - 0.25* p[2][3];
+    a[1][3] = 0.25 * p[0][0] - 0.75* p[0][1] + 0.75* p[0][2] - 0.25* p[0][3] 
+             -0.25 * p[2][0] + 0.75* p[2][1] - 0.75* p[2][2] + 0.25* p[2][3];
+    a[2][0] =        p[0][1] - 2.5 * p[1][1] + 2   * p[2][1] - 0.5 * p[3][1];
+    a[2][1] = -0.5 * p[0][0] + 0.5 * p[0][2] + 1.25* p[1][0] - 1.25* p[1][2]
+                   - p[2][0] +       p[2][2] + 0.25* p[3][0] - 0.25* p[3][2];
+    a[2][2] =        p[0][0] - 2.5 * p[0][1] + 2   * p[0][2] - 0.5 * p[0][3] 
+              -2.5 * p[1][0] + 6.25* p[1][1] - 5   * p[1][2] + 1.25* p[1][3] 
+              +2   * p[2][0] - 5   * p[2][1] + 4   * p[2][2] -       p[2][3] 
+              -0.5 * p[3][0] + 1.25* p[3][1] -       p[3][2] + 0.25* p[3][3];
+    a[2][3] = -0.5 * p[0][0] + 1.5 * p[0][1] - 1.5 * p[0][2] + 0.5 * p[0][3] 
+              +1.25* p[1][0] - 3.75* p[1][1] + 3.75* p[1][2] - 1.25* p[1][3] 
+              -      p[2][0] + 3   * p[2][1] - 3   * p[2][2] +       p[2][3] 
+              +0.25* p[3][0] - 0.75* p[3][1] + 0.75* p[3][2] - 0.25* p[3][3];
+    a[3][0] = -0.5 * p[0][1] + 1.5 * p[1][1] - 1.5 * p[2][1] + 0.5 * p[3][1];
+    a[3][1] =  0.25* p[0][0] - 0.25* p[0][2] - 0.75* p[1][0] + 0.75* p[1][2] 
+              +0.75* p[2][0] - 0.75* p[2][2] - 0.25* p[3][0] + 0.25* p[3][2];
+    a[3][2] = -0.5 * p[0][0] + 1.25* p[0][1] -       p[0][2] + 0.25* p[0][3] 
+              +1.5 * p[1][0] - 3.75* p[1][1] + 3   * p[1][2] - 0.75* p[1][3] 
+              -1.5 * p[2][0] + 3.75* p[2][1] - 3   * p[2][2] + 0.75* p[2][3] 
+              +0.5 * p[3][0] - 1.25* p[3][1] +       p[3][2] - 0.25* p[3][3];
+    a[3][3] =  0.25* p[0][0] - 0.75* p[0][1] + 0.75* p[0][2] - 0.25* p[0][3] 
+              -0.75* p[1][0] + 2.25* p[1][1] - 2.25* p[1][2] + 0.75* p[1][3] 
+              +0.75* p[2][0] - 2.25* p[2][1] + 2.25* p[2][2] - 0.75* p[2][3] 
+              -0.25* p[3][0] + 0.75* p[3][1] - 0.75* p[3][2] + 0.25* p[3][3];
 
   }
 private:
   
-  inline T interpolate_at_relative(const vector_type& relative_position) const
+  inline T interpolate_at_relative(const position_vector_type& relative_position) const
   {
-    vector_type transformed_rel_pos;
+    position_vector_type transformed_rel_pos;
     
     //Transform coordinates from relative position on the entire sampling area
     //to relative position on the central square of evaluation points
@@ -167,10 +190,10 @@ private:
         result += x_powers[i] * y_powers[j] * _bicubic_interpolation_coefficients[i][j];
     
     return result;
-   }
+  }
   
-  vector_type _area_size;
-  vector_type _min_extent;
+  position_vector_type _area_size;
+  position_vector_type _min_extent;
   util::matrix_nxn<T, 4> _bicubic_interpolation_coefficients;
 };
 
@@ -182,11 +205,15 @@ template<typename T,
 class vector_interpolator
 {
 public:
+  
   static_assert(Dimension > 0, "Dimension must be greater than 0.");
   
   typedef Interpolator_type<T, Coordinate_type> interpolator_type;
   
-  typedef typename interpolator_type::vector_type position_vector_type;
+  typedef typename interpolator_type::position_vector_type position_vector_type;
+  
+  static constexpr unsigned num_samples_x = interpolator_type::num_samples_x;
+  static constexpr unsigned num_samples_y = interpolator_type::num_samples_y;
   
   vector_interpolator() = default;
   vector_interpolator(const position_vector_type& min_extent,
@@ -196,26 +223,65 @@ public:
       _interpolators[i] = interpolator_type(min_extent, max_extent);
   }
   
+  typedef typename interpolator_type::eval_values_matrix_type backend_eval_values_matrix_type;
+  typedef std::array
+  <
+    backend_eval_values_matrix_type, 
+    Dimension
+  > eval_values_matrix_type;
+  
   template<class Eval_function>
   void init(Eval_function fn)
   {
-    std::array<typename interpolator_type::eval_values_storage_type, Dimension> eval;
+    eval_values_matrix_type eval;
     
     _interpolators[0].foreach_evaluation_point(
-    [&eval, &fn](const position_vector_type& pos, unsigned eval_point_id)
+    [&eval, &fn](const position_vector_type& pos, unsigned eval_point_id, unsigned i, unsigned j)
     {
       auto function_value = fn(pos);
       
-      for(std::size_t i = 0; i < Dimension; ++i)
-        eval[i][eval_point_id] = function_value[i];
+      for(std::size_t k = 0; k < Dimension; ++k)
+        eval[k][i][j] = function_value[k];
     });
     
+    init(eval);
+  }
+  
+
+  void init(const eval_values_matrix_type& eval)
+  {
     for(std::size_t i = 0; i < Dimension; ++i)
     {
       _interpolators[i].init(eval[i]);
     }
   }
   
+  static inline void set_eval_value(eval_values_matrix_type& m,
+                                    unsigned i, 
+                                    unsigned j, 
+                                    const Vector_type& x)
+  {
+    for(unsigned k = 0; k < Dimension; ++k)
+      m[k][i][j] = x[k];
+  }
+  
+  static inline Vector_type get_eval_value(const eval_values_matrix_type& m,
+                                           unsigned i,
+                                           unsigned j)
+  {
+    Vector_type result;
+    for(unsigned k = 0; k < Dimension; ++k)
+      result[k] = m[k][i][j];
+    return result;
+  }
+  
+    
+  template<class Function>
+  void foreach_evaluation_point(Function fn) const
+  {
+    _interpolators[0].foreach_evaluation_point(fn);
+  }
+
   Vector_type interpolate(const position_vector_type& v) const
   {
     Vector_type result;
@@ -225,6 +291,15 @@ public:
     
     return result;
   }
+  
+  std::size_t get_dimension() const
+  { return Dimension; }
+  
+  interpolator_type& operator[](std::size_t i)
+  { return _interpolators[i]; }
+  
+  const interpolator_type& operator[](std::size_t i) const
+  { return _interpolators[i]; }
   
 private:
   std::array<interpolator_type, Dimension> _interpolators;
@@ -356,6 +431,63 @@ private:
   position_vector_type _min_corner;
   position_vector_type _center;
 };
+
+
+template<class Interpolator_type, std::size_t N>
+struct interpolator_grid_bulk_initializer
+{
+  typedef typename Interpolator_type::position_vector_type position_vector_type;
+  
+  template<class Eval_function>
+  inline void shared_border_init(
+                            std::array<std::array<Interpolator_type,N>,N>& interpolators,
+                            Eval_function fn)
+  {
+    std::array<std::array<typename Interpolator_type::eval_values_matrix_type, N>,N> cell_eval_values;
+    
+    unsigned num_samples_x = Interpolator_type::num_samples_x;
+    unsigned num_samples_y = Interpolator_type::num_samples_y;
+    
+    assert(N > 0);
+
+    for(std::size_t i = 0; i < N; ++i)
+    {
+      for(std::size_t j = 0; j < N; ++j)
+      {
+        
+        interpolators[i][j].foreach_evaluation_point([&](const position_vector_type& pos,
+                                                     unsigned eval_id, unsigned local_i, unsigned local_j)
+        {
+          if(local_i == 0 && i != 0)
+          {
+            auto border_value = Interpolator_type::get_eval_value(cell_eval_values[i-1][j],
+                                                                  num_samples_x - 1, 
+                                                                  local_j);
+            
+            Interpolator_type::set_eval_value(cell_eval_values[i][j], local_i, local_j, border_value);
+          }
+          else if(local_j == 0 && j != 0)
+          {
+            
+            auto border_value = Interpolator_type::get_eval_value(cell_eval_values[i][j-1],
+                                                      local_i, 
+                                                      num_samples_y - 1);
+            
+            Interpolator_type::set_eval_value(cell_eval_values[i][j], local_i, local_j, border_value);
+          }
+          else
+            Interpolator_type::set_eval_value(cell_eval_values[i][j], local_i, local_j, fn(pos));
+          
+        });
+
+        interpolators[i][j].init(cell_eval_values[i][j]);
+      }
+    }
+    
+    
+  }
+};
+  
 
 }
 
