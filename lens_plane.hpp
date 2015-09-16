@@ -175,6 +175,9 @@ public:
     
     _shear_matrix = {{{A * cos2_phi + B * sin2_phi, (A - B)* cos_phi * sin_phi}, 
                       {(A -B )* cos_phi * sin_phi, A * sin2_phi + B * cos2_phi}}};
+    
+    _shear_matrix[0][0] -= _sigma_smooth;
+    _shear_matrix[1][1] -= _sigma_smooth;
   }
 
 
@@ -209,12 +212,6 @@ public:
   {
     util::vector2 out;
     util::matrix_vector_mult(_shear_matrix, lens_plane_pos, out);
-    
-    util::vector2 smooth_matter_contribution = lens_plane_pos;
-    smooth_matter_contribution[0] *= _sigma_smooth;
-    smooth_matter_contribution[1] *= _sigma_smooth;
-    
-    util::sub(out, smooth_matter_contribution);;
 
     util::vector2 deflection;
     get_deflection_angle(lens_plane_pos, deflection);
@@ -325,6 +322,29 @@ public:
     out["sigma smooth"] = this->get_sigma_smooth();
     out["sigma total"] = this->get_mean_surface_density();
     out["shear"] = this->get_shear();
+  }
+  
+  /// Estimates the coordinates of a rectangle in the lens plane that is mapped
+  /// to a given rectangle in the source plane
+  /// @param source_plane_coordinates A matrix containing the coordinates of the
+  /// source plane rectangle
+  /// @param out A matrix into which the resulting coordinates in the lens plane
+  /// will be written.
+  void estimate_mapped_area_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
+                                        util::matrix_nxn<util::vector2, 2>& out) const
+  {
+    // out = (shear_matrix - diag(smooth_matter))^-1 * x
+    // (The smooth matter term is already contained in the shear matrix)
+    util::matrix_nxn<util::scalar, 2> lensing_transformation = _shear_matrix;
+    
+    util::matrix_nxn<util::scalar, 2> inverted_lensing_transformation;
+    numeric::invert_matrix(lensing_transformation, inverted_lensing_transformation);
+    
+    for(std::size_t i = 0; i < 2; ++i)
+      for(std::size_t j = 0; j < 2; ++j)
+        util::matrix_vector_mult(inverted_lensing_transformation, source_plane_coordinates[i][j],
+                                 out[i][j]);
+
   }
 private:
   std::vector<star>::const_iterator get_nearest_star(const util::vector2& position) const

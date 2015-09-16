@@ -43,14 +43,16 @@ public:
   inline void calculate_deflection_angle(const util::vector2& position,
                                         util::vector2& result) const
   {
-    //TODO Think about a solution for this case
-    assert(position != _position);
-    
     result = this->_position;
     util::sub(result, position);
 
     util::scalar squared_norm = util::dot(result, result);
 
+    if(squared_norm == 0.0)
+    {
+      result = {0.0, 0.0};
+      return;
+    }
 
     util::scalar factor = _deflection_constant / squared_norm;
 

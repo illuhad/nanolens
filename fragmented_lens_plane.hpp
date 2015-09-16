@@ -111,6 +111,44 @@ public:
     return _sigma_smooth + _sigma_star;
   }
   
+  /// Estimates the coordinates of a rectangle in the lens plane that is mapped
+  /// to a given rectangle in the source plane
+  /// @param source_plane_coordinates A matrix containing the coordinates of the
+  /// source plane rectangle
+  /// @param out A matrix into which the resulting coordinates in the lens plane
+  /// will be written.
+  void estimate_mapped_area_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
+                                        util::matrix_nxn<util::vector2, 2>& out) const
+  {
+    util::matrix<util::vector2, 2> coordinates = source_plane_coordinates;
+    util::scalar x_center = 
+      0.5 * (source_plane_coordinates[0][0] + source_plane_coordinates[1][0]);
+    
+    coordinates[0][0][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
+    coordinates[0][1][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
+    
+    // Get results for the left side of the region from the lens plane fragment
+    
+    coordinates[1][0][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
+    coordinates[1][1][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
+    
+    // Get results for the right side of the region
+    
+    // Add results
+    
+    for(std::size_t i = 0; i < 2; ++i)
+    {
+      for(std::size_t j = 0; j < 2; ++j)
+      {
+        // Transform to the origin
+        util::sub(coordinates[i][j], _current_fragment_center);
+        
+        out[i][j] = source_plane_coordinates[i][j];
+        util::add(out[i][j], coordinates[i][j]);
+      }
+    }
+  }
+  
   void obtain_properties_set(std::map<std::string, util::scalar>& out) const
   {
     out.clear();
