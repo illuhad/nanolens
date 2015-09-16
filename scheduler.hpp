@@ -113,6 +113,16 @@ public:
           job_entity_index <= _all_ends[process_rank];
   }
   
+  std::size_t get_ownership_range_begin() const
+  {
+    return _own_beg;
+  }
+  
+  std::size_t get_ownership_range_end() const
+  {
+    return _own_end;
+  }
+  
   int get_assigned_process_rank(std::size_t job_entity_index) const
   {
     for(std::size_t i = 0; i < _all_begins.size(); ++i)

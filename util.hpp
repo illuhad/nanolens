@@ -30,7 +30,7 @@
 namespace nanolens{
 namespace util{
 
-typedef double scalar;
+typedef float scalar;
 
 template<typename ScalarType, std::size_t N>
 using vector = std::array<ScalarType, N>;

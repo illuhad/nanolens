@@ -90,9 +90,24 @@ public:
     }
   }
   
-  void load(util::multi_array<T>& out) const
+  void load(const std::string& filename, std::size_t dimensions, util::multi_array<T>& out) const
   {
-    // TODO
+    fitsfile* file;
+    int status = 0;
+    int bitpix, naxis_flag;
+    std::vector<long> naxes(dimensions, 0);
+    
+    if(!fits_open_file(&file, filename.c_str(), READONLY, &status))
+    {
+      if(!fits_get_img_param(file, dimensions, &bitpix, &naxis_flag, naxes.data(), 
+                             &status))
+      {
+        out = util::multi_array<T>(naxes);
+        
+        // TODO
+      }
+    }
+    
   }
   
 private:

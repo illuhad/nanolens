@@ -354,6 +354,8 @@ public:
           {static_cast<std::size_t>((cache_grid_max_extent[0] - cache_grid_min_extent[0]) / cell_size[0]),
            static_cast<std::size_t>((cache_grid_max_extent[1] - cache_grid_min_extent[1]) / cell_size[1])};
     
+    std::cout << "cache grid size = " << num_cells[0] << " " << num_cells[1] << std::endl;
+    
     for(std::size_t i = 0; i < num_cells.size(); ++i)
     if(num_cells[i] == 0)
       num_cells[i] = 1;
@@ -378,7 +380,6 @@ private:
   struct interpolation_cell
   {
     typedef standard_vector2_interpolator interpolator_type;
-    //typedef standard_vector2_interpolator interpolator_type;
     
     static const std::size_t num_interpolators = 3;
     
@@ -410,6 +411,14 @@ private:
     
     interpolation_cell::interpolator_grid_type::index_type interpolator_index
       = grid_entry.far_cell_interpolator_grid(pos);
+    
+    for(std::size_t i = 0; i < interpolator_index.size(); ++i)
+    {
+      if(interpolator_index[i] == static_cast<std::size_t>(-1))
+        interpolator_index[i] = 0;
+      else if(interpolator_index[i] >= interpolation_cell::num_interpolators)
+        interpolator_index[i] = interpolation_cell::num_interpolators - 1;
+    }
     
     util::vector2 interpolated_contribution
       = grid_entry.far_cell_interpolators[interpolator_index[0]][interpolator_index[1]].interpolate(pos);

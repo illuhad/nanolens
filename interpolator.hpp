@@ -456,7 +456,9 @@ struct interpolator_grid_bulk_initializer
       {
         
         interpolators[i][j].foreach_evaluation_point([&](const position_vector_type& pos,
-                                                     unsigned eval_id, unsigned local_i, unsigned local_j)
+                                                     unsigned eval_id, 
+                                                     unsigned local_i, 
+                                                     unsigned local_j)
         {
           if(local_i == 0 && i != 0)
           {
@@ -464,7 +466,10 @@ struct interpolator_grid_bulk_initializer
                                                                   num_samples_x - 1, 
                                                                   local_j);
             
-            Interpolator_type::set_eval_value(cell_eval_values[i][j], local_i, local_j, border_value);
+            Interpolator_type::set_eval_value(cell_eval_values[i][j],
+                                              local_i, 
+                                              local_j, 
+                                              border_value);
           }
           else if(local_j == 0 && j != 0)
           {
@@ -473,10 +478,16 @@ struct interpolator_grid_bulk_initializer
                                                       local_i, 
                                                       num_samples_y - 1);
             
-            Interpolator_type::set_eval_value(cell_eval_values[i][j], local_i, local_j, border_value);
+            Interpolator_type::set_eval_value(cell_eval_values[i][j], 
+                                              local_i, 
+                                              local_j, 
+                                              border_value);
           }
           else
-            Interpolator_type::set_eval_value(cell_eval_values[i][j], local_i, local_j, fn(pos));
+            Interpolator_type::set_eval_value(cell_eval_values[i][j], 
+                                              local_i, 
+                                              local_j, 
+                                              fn(pos));
           
         });
 

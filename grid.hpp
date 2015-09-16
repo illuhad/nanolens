@@ -54,6 +54,7 @@ struct translator_impl<Vector_type, Index_type, Dimension, true>
       else
         result[i] = static_cast<std::size_t>((position[i] - min_extent[i]) / stepwidths[i]) + 1;
     }
+    
     return result;
   }
   

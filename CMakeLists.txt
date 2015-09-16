@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math -Wall -Wextra -Wpedan
 
 cmake_minimum_required (VERSION 2.6)
 project (nanolens)
-add_executable(nanolens nanolens.cpp)
+add_executable(nanolens nanolens.cpp nanolens.xml)
 
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -43,6 +43,10 @@ set(LIBS ${LIBS} ${BOOST_LIBRARIES})
 
 include_directories(${BOOST_INCLUDE_DIRS})
 target_link_libraries (nanolens boost_serialization boost_mpi cfitsio)
+
+add_custom_command(TARGET nanolens POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                       ${CMAKE_SOURCE_DIR}/nanolens.xml $<TARGET_FILE_DIR:nanolens>)
 
 
 

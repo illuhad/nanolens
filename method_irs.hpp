@@ -199,31 +199,34 @@ public:
     
     handler(status_info("Scheduling complete", &schedule, ""));
     
+    // Calculate start ray position for this process
+    ray_position = min_corner;
+    ray_position[0] += schedule.get_ownership_range_begin() * step_sizes[0];
+    
     std::size_t num_jobs_completed = 0;
-    for(std::size_t x_idx = 0; x_idx < n_rays_x; ++x_idx)
+    for(std::size_t x_idx = schedule.get_ownership_range_begin();
+            x_idx <= schedule.get_ownership_range_end(); ++x_idx)
     {
       util::scalar progress = static_cast<util::scalar>(num_jobs_completed) /
         static_cast<util::scalar>(schedule.get_num_assigned_jobs());
       
       handler(status_info("Evaluating ray function", nullptr, "", progress));
       
-      if(schedule.is_scheduled_to_this_process(x_idx))
+      for(std::size_t y_idx = 0; y_idx < n_rays_y; ++y_idx)
       {
-        for(std::size_t y_idx = 0; y_idx < n_rays_y; ++y_idx)
-        {
-          util::vector2 impact_position = sys.lensing_transformation(ray_position);
-          
-          std::array<std::size_t, 2> pixel_idx = pixel_grid_translator(impact_position);
-          
-          if(this->_screen->get_pixels().is_within_bounds(pixel_idx.data()))
-            this->_screen->get_pixels()[pixel_idx.data()] += magnification_per_ray;
+        util::vector2 impact_position = sys.lensing_transformation(ray_position);
 
-          ray_position[1] += step_sizes[1];
-        }
-        ray_position[1] = min_corner[1];
-        ++num_jobs_completed;
+        std::array<std::size_t, 2> pixel_idx = pixel_grid_translator(impact_position);
+
+        if(this->_screen->get_pixels().is_within_bounds(pixel_idx.data()))
+          this->_screen->get_pixels()[pixel_idx.data()] += magnification_per_ray;
+
+        ray_position[1] += step_sizes[1];
       }
+      ray_position[1] = min_corner[1];
       ray_position[0] += step_sizes[0];
+      
+      ++num_jobs_completed;
     }
     
     handler(status_info("Waiting for processes...\n"));
