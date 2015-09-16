@@ -340,12 +340,6 @@ public:
     
     util::vector2 cell_size = {0.75, 0.75};
     
-    auto interpolation_cell_constructor = 
-    [this, cell_size](interpolation_cell& entry, util::vector2 cell_center)
-    {
-      init_cache_grid_entry(entry, cell_center, cell_size);
-    };
-    
     
     util::vector2 cache_grid_min_extent = min_extent;
     util::vector2 cache_grid_max_extent = max_extent;
@@ -354,11 +348,21 @@ public:
           {static_cast<std::size_t>((cache_grid_max_extent[0] - cache_grid_min_extent[0]) / cell_size[0]),
            static_cast<std::size_t>((cache_grid_max_extent[1] - cache_grid_min_extent[1]) / cell_size[1])};
     
-    std::cout << "cache grid size = " << num_cells[0] << " " << num_cells[1] << std::endl;
     
     for(std::size_t i = 0; i < num_cells.size(); ++i)
-    if(num_cells[i] == 0)
-      num_cells[i] = 1;
+    {
+      if(num_cells[i] == 0)
+      {
+        num_cells[i] = 1;
+        cell_size[i] = cache_grid_max_extent[i] - cache_grid_min_extent[i];
+      }
+    }
+    
+    auto interpolation_cell_constructor = 
+    [this, cell_size](interpolation_cell& entry, util::vector2 cell_center)
+    {
+      init_cache_grid_entry(entry, cell_center, cell_size);
+    };
 
     _interpolation_cell_cache = std::shared_ptr<interpolation_cell_cache_type>(
                   new interpolation_cell_cache_type(cache_grid_min_extent, 

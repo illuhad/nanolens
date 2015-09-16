@@ -54,7 +54,12 @@ struct translator_impl<Vector_type, Index_type, Dimension, true>
       else
         result[i] = static_cast<std::size_t>((position[i] - min_extent[i]) / stepwidths[i]) + 1;
     }
-    
+//    std::cout << "min_extent = " << min_extent[0] << " " << min_extent[1] << std::endl;
+//    std::cout << "max_extent = " << max_extent[0] << " " << max_extent[1] << std::endl;
+//    std::cout << "position = " << position[0] << " " << position[1] << std::endl;
+//    std::cout << "stepwidth = " << stepwidths[0] << " " << stepwidths[1] << std::endl;
+//    std::cout << "result = " << result[0] << " " << result[1] << std::endl;
+//    
     return result;
   }
   
@@ -62,14 +67,10 @@ struct translator_impl<Vector_type, Index_type, Dimension, true>
                                                    const Vector_type& min_extent,
                                                    const Vector_type& stepwidths)
   {
-    std::array<int, Dimension> exterior_layer_corrected_position;
-    for(std::size_t i = 0; i < Dimension; ++i)
-      exterior_layer_corrected_position[i] = static_cast<int>(idx[i]) - 1;
-    
     Vector_type position;
     
     for(std::size_t i = 0; i < Dimension; ++i)
-      position[i] = min_extent[i] + exterior_layer_corrected_position[i] * stepwidths[i];
+      position[i] = min_extent[i] + (static_cast<long long int>(idx[i]) - 1) * stepwidths[i];
     
     return position;
   }
@@ -127,21 +128,19 @@ public:
     for(std::size_t i = 0; i < Dimension; ++i)
       assert(_max_extent[i] > _min_extent[i]);
     
-    if(EdgeLayer)
-      for(std::size_t& buckets : _num_buckets)
-        buckets += 2;
-    
     _interior_num_buckets = _num_buckets;
     
     if(EdgeLayer)
-      for(std::size_t& bucket_size : _interior_num_buckets)
-        bucket_size -= 2;
+      for(std::size_t i = 0; i < _num_buckets.size(); ++i)
+        _num_buckets[i] += 2;
+    
     
     for(std::size_t dim = 0; dim < Dimension; ++dim)
     {
       _stepwidths[dim] = (_max_extent[dim] - _min_extent[dim]) / static_cast<FieldType>(_interior_num_buckets[dim]);
       _half_stepwidth[dim] = 0.5 * _stepwidths[dim];
     }
+
   }
   
   index_type operator()(const scalar_array_type& position) const
@@ -254,15 +253,17 @@ public:
        const scalar_array_type& max_extent,
        const std::array<std::size_t, Dimension> num_buckets)
   {
-    index_type extended_num_buckets = num_buckets;
-    
-    if(EdgeLayer)
-      for(std::size_t i = 0; i < Dimension; ++i)
-        extended_num_buckets[i] += 2;
     
     _translator = grid_translator<FieldType,Dimension,EdgeLayer>(min_extent, 
                                                                  max_extent, 
-                                                                 extended_num_buckets);
+                                                                 num_buckets);
+   
+    index_type extended_num_buckets = num_buckets;
+    
+    // Make sure we have enough space for the EdgeLayer
+    if(EdgeLayer)
+      for(std::size_t i = 0; i < Dimension; ++i)
+        extended_num_buckets[i] += 2;
     
     _data = util::multi_array<ValueType>(
       std::move(util::array_to_vector(extended_num_buckets)));
