@@ -94,6 +94,31 @@ public:
     }
   };
   
+  enum post_processing_step_type
+  {
+    DIRECT_CONVOLUTION
+  };
+  
+  class post_processing_step_descriptor
+  {
+  public:
+    post_processing_step_descriptor()
+    {}
+    
+    const std::string& get_fits_input() const
+    { return _fits_input; }
+    
+    const std::string& get_fits_output() const
+    { return _fits_output; }
+    
+    post_processing_step_type get_type() const
+    { return _type; }
+  private:
+    std::string _fits_input;
+    std::string _fits_output;
+    post_processing_step_type _type;
+  };
+  
   enum method_type
   {
     INVERSE_RAY_SHOOTING = 0
@@ -285,6 +310,11 @@ public:
   {
     return _lens_plane_type;
   }
+  
+  const std::vector<post_processing_step_descriptor>& get_post_processing_steps() const
+  {
+    return _post_processing_steps;
+  }
 private:
   void load_method()
   {
@@ -396,6 +426,7 @@ private:
   method_type _method;
   lens_plane_type _lens_plane_type;
   
+  std::vector<post_processing_step_descriptor> _post_processing_steps;
   
   friend class boost::serialization::access;
 

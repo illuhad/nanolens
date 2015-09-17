@@ -1,0 +1,77 @@
+/*
+ * This file is part of nanolens, a free program to calculate microlensing 
+ * magnification patterns.
+ * Copyright (C) 2015  Aksel Alpay
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef NANOLENS_HPP_IN
+#define	NANOLENS_HPP_IN
+
+#include <string>
+
+#define NANOLENS_VERSION_MAJOR @nanolens_VERSION_MAJOR@
+#define NANOLENS_VERSION_MINOR @nanolens_VERSION_MINOR@
+#define NANOLENS_VERSION_PATCH @nanolens_VERSION_PATCH@
+
+#define TO_STRING(x) #x
+#define NANOLENS_TARGET_SYSTEM TO_STRING(@CMAKE_SYSTEM@)
+#define NANOLENS_BUILD_TYPE TO_STRING(@CMAKE_BUILD_TYPE@)
+#define NANOLENS_COMPILER TO_STRING(@CMAKE_CXX_COMPILER@)
+#define NANOLENS_COMPILER_FLAGS TO_STRING(@CMAKE_CXX_FLAGS@)
+#define NANOLENS_PROCESSOR_TYPE TO_STRING(@CMAKE_SYSTEM_PROCESSOR@)
+
+namespace nanolens{
+
+struct build_info
+{
+  static std::string get_version_string()
+  {
+    return std::to_string(NANOLENS_VERSION_MAJOR) + "." 
+         + std::to_string(NANOLENS_VERSION_MINOR) + "."
+         + std::to_string(NANOLENS_VERSION_PATCH);
+  }
+
+  static std::string get_system_string()
+  {
+    return std::string(NANOLENS_TARGET_SYSTEM);
+  }
+
+  static std::string get_processor_type()
+  {
+    return std::string(NANOLENS_PROCESSOR_TYPE);
+  }
+
+  static std::string get_build_type()
+  {
+    return std::string(NANOLENS_BUILD_TYPE);
+  }
+
+  static std::string get_compiler()
+  {
+    return std::string(NANOLENS_COMPILER);
+  }
+
+  static std::string get_compiler_flags()
+  {
+    return std::string(NANOLENS_COMPILER_FLAGS);
+  }
+
+};
+
+}
+
+#endif	/* NANOLENS_HPP_IN */
+

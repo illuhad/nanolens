@@ -27,6 +27,7 @@
 #include "input.hpp"
 #include "status_handler.hpp"
 #include "launch.hpp"
+#include "nanolens.hpp"
 
 
 
@@ -72,7 +73,13 @@ int main(int argc, char** argv)
                                                                                 
 
   
-  master_cout << "nanolens version 2.97e-18 launching..." << std::endl;
+  master_cout << "nanolens version " << nanolens::build_info::get_version_string() 
+              << " (" << nanolens::build_info::get_build_type() << ") launching." << std::endl;
+  master_cout << "Built for " << nanolens::build_info::get_system_string() << " (" << 
+              nanolens::build_info::get_processor_type() << ")" << std::endl;
+  master_cout << "Compiler: " << nanolens::build_info::get_compiler()
+              << std::endl << std::endl;
+  
   master_cout << "Using " << world.size() << " process(es).\n";
   
   std::vector<nanolens::star> stars;

@@ -275,30 +275,34 @@ private:
   // Appends the content of a given cell to a result list.
   void load_cell(const grid_index_type& grid_pos, query_result_list_type& out) const
   {
-    std::string file = _storage_map[grid_pos].get_filename();
-    if(file.length() != 0)
+    auto it = _storage_map.find(grid_pos);
+    if(it != _storage_map.end())
     {
-    
-      std::ifstream cell_file(file.c_str(), std::ios::binary);
-
-      if(cell_file.is_open())
+      std::string file = it->second.get_filename();
+      if(file.length() != 0)
       {
-        boost::archive::binary_iarchive serializer(cell_file);
-        
-        point_type pos;
-        T x;
-        try
-        {
-          while(cell_file)
-          {
-            serializer >> pos;
-            serializer >> x;
 
-            out.push_back(std::make_pair(pos, x));
+        std::ifstream cell_file(file.c_str(), std::ios::binary);
+
+        if(cell_file.is_open())
+        {
+          boost::archive::binary_iarchive serializer(cell_file);
+
+          point_type pos;
+          T x;
+          try
+          {
+            while(cell_file)
+            {
+              serializer >> pos;
+              serializer >> x;
+
+              out.push_back(std::make_pair(pos, x));
+            }
           }
+          catch(...)
+          { /* The serializer will throw an error when it has reached the end of the file*/ }
         }
-        catch(...)
-        { /* The serializer will throw an error when it has reached the end of the file*/ }
       }
     }
     

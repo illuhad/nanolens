@@ -90,23 +90,41 @@ public:
     }
   }
   
-  void load(const std::string& filename, std::size_t dimensions, util::multi_array<T>& out) const
+  template<std::size_t N_dimensions>
+  void load(const std::string& filename, util::multi_array<T>& out) const
   {
+    static_assert(N_dimensions > 0, "Number of dimensions cannot be zero.");
+    
     fitsfile* file;
     int status = 0;
     int bitpix, naxis_flag;
-    std::vector<long> naxes(dimensions, 0);
+    std::vector<long> naxes(N_dimensions, 0);
     
     if(!fits_open_file(&file, filename.c_str(), READONLY, &status))
     {
-      if(!fits_get_img_param(file, dimensions, &bitpix, &naxis_flag, naxes.data(), 
+      if(!fits_get_img_param(file, N_dimensions, &bitpix, &naxis_flag, naxes.data(), 
                              &status))
       {
         out = util::multi_array<T>(naxes);
         
-        // TODO
+        long fpixel [N_dimensions];
+        for(std::size_t i = 1; i < N_dimensions; ++i)
+          fpixel[i] = 1;
+        
+        long num_elements = out.size();
+        
+        fits_read_pix(file,
+                      fits_datatype<T>::datatype(), 
+                      fpixel, 
+                      num_elements, 
+                      NULL, 
+                      out.data(), 
+                      NULL, 
+                      &status);
       }
     }
+    else
+      throw std::runtime_error(std::string("Could not load fits file: ") + filename);
     
   }
   

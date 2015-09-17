@@ -6,6 +6,22 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math -Wall -Wextra -Wpedan
 
 cmake_minimum_required (VERSION 2.6)
 project (nanolens)
+
+set(nanolens_VERSION_MAJOR 2)
+set(nanolens_VERSION_MINOR 97)
+set(nanolens_VERSION_PATCH 18)
+
+# configure a header file to pass some of the CMake settings
+# to the source code
+configure_file (
+  "${PROJECT_SOURCE_DIR}/nanolens.hpp.in"
+  "${PROJECT_BINARY_DIR}/nanolens.hpp"
+  )
+ 
+# add the binary tree to the search path for include files
+# so that we will find TutorialConfig.h
+include_directories("${PROJECT_BINARY_DIR}")
+
 add_executable(nanolens nanolens.cpp nanolens.xml)
 
 
