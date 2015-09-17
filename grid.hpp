@@ -54,12 +54,6 @@ struct translator_impl<Vector_type, Index_type, Dimension, true>
       else
         result[i] = static_cast<std::size_t>((position[i] - min_extent[i]) / stepwidths[i]) + 1;
     }
-//    std::cout << "min_extent = " << min_extent[0] << " " << min_extent[1] << std::endl;
-//    std::cout << "max_extent = " << max_extent[0] << " " << max_extent[1] << std::endl;
-//    std::cout << "position = " << position[0] << " " << position[1] << std::endl;
-//    std::cout << "stepwidth = " << stepwidths[0] << " " << stepwidths[1] << std::endl;
-//    std::cout << "result = " << result[0] << " " << result[1] << std::endl;
-//    
     return result;
   }
   
@@ -110,7 +104,7 @@ struct translator_impl<Vector_type, Index_type, Dimension, false>
 
 }
 // Translates a point into a grid index
-template<class FieldType, std::size_t Dimension, bool EdgeLayer>
+template<class FieldType, std::size_t Dimension, bool Edge_layer>
 class grid_translator
 {
 public:
@@ -130,7 +124,7 @@ public:
     
     _interior_num_buckets = _num_buckets;
     
-    if(EdgeLayer)
+    if(Edge_layer)
       for(std::size_t i = 0; i < _num_buckets.size(); ++i)
         _num_buckets[i] += 2;
     
@@ -150,7 +144,7 @@ public:
       scalar_array_type, 
       index_type, 
       Dimension, 
-      EdgeLayer
+      Edge_layer
     >::to_grid_index(position, _min_extent, _max_extent, _stepwidths, _num_buckets);
   }
   
@@ -175,11 +169,11 @@ public:
   index_type get_interior_start_bucket() const
   {
     index_type result;
-    std::fill(result.begin(), result.end(), 0);
     
-    if(EdgeLayer)
-      for(std::size_t i = 0; i < Dimension; ++i)
-        result[i] = 1;
+    if(Edge_layer)
+      std::fill(result.begin(), result.end(), 1);
+    else
+      std::fill(result.begin(), result.end(), 0);
     
     return result;
   }
@@ -190,7 +184,7 @@ public:
     index_type result;
     
     for(std::size_t i = 0; i < Dimension; ++i)
-      if(EdgeLayer)
+      if(Edge_layer)
         result[i] = _num_buckets[i] - 1;
       else
         result[i] = _num_buckets[i];
@@ -205,7 +199,7 @@ public:
       scalar_array_type, 
       index_type, 
       Dimension, 
-      EdgeLayer
+      Edge_layer
     >::to_bucket_min_position(p, this->_min_extent, this->_stepwidths);
   }
   
@@ -235,17 +229,17 @@ private:
   index_type _interior_num_buckets;
 };
 
-template<typename FieldType, class ValueType, std::size_t Dimension, bool EdgeLayer = true>
+template<typename Field_type, class Value_type, std::size_t Dimension, bool Edge_layer = true>
 class grid
 {
 public:
-  typedef typename grid_translator<FieldType, Dimension, EdgeLayer>::scalar_array_type scalar_array_type;
-  typedef typename grid_translator<FieldType, Dimension, EdgeLayer>::index_type index_type;
+  typedef typename grid_translator<Field_type, Dimension, Edge_layer>::scalar_array_type scalar_array_type;
+  typedef typename grid_translator<Field_type, Dimension, Edge_layer>::index_type index_type;
 
-  typedef typename util::multi_array<ValueType>::iterator iterator;
-  typedef typename util::multi_array<ValueType>::const_iterator const_iterator;
+  typedef typename util::multi_array<Value_type>::iterator iterator;
+  typedef typename util::multi_array<Value_type>::const_iterator const_iterator;
   
-  typedef ValueType value_type;
+  typedef Value_type value_type;
   
   grid(){}
   
@@ -254,38 +248,38 @@ public:
        const std::array<std::size_t, Dimension> num_buckets)
   {
     
-    _translator = grid_translator<FieldType,Dimension,EdgeLayer>(min_extent, 
+    _translator = grid_translator<Field_type,Dimension,Edge_layer>(min_extent, 
                                                                  max_extent, 
                                                                  num_buckets);
    
     index_type extended_num_buckets = num_buckets;
     
     // Make sure we have enough space for the EdgeLayer
-    if(EdgeLayer)
+    if(Edge_layer)
       for(std::size_t i = 0; i < Dimension; ++i)
         extended_num_buckets[i] += 2;
     
-    _data = util::multi_array<ValueType>(
+    _data = util::multi_array<Value_type>(
       std::move(util::array_to_vector(extended_num_buckets)));
     
   }
   
-  ValueType& operator[](const scalar_array_type& position)
+  Value_type& operator[](const scalar_array_type& position)
   {
     return _data[get_index(position).data()];
   }
   
-  const ValueType& operator[](const scalar_array_type& position) const
+  const Value_type& operator[](const scalar_array_type& position) const
   {
     return _data[get_index(position).data()];
   }
   
-  ValueType& operator[](const index_type& position)
+  Value_type& operator[](const index_type& position)
   {    
     return _data[position.data()];
   }
   
-  const ValueType& operator[](const index_type& position) const
+  const Value_type& operator[](const index_type& position) const
   {
     return _data[position.data()];
   }
@@ -315,12 +309,12 @@ public:
     return _data.get_num_elements();
   }
   
-  util::multi_array<ValueType>& data() 
+  util::multi_array<Value_type>& data() 
   {
     return _data;
   }
   
-  const util::multi_array<ValueType>& data() const
+  const util::multi_array<Value_type>& data() const
   {
     return _data;
   }
@@ -381,9 +375,9 @@ public:
     return _translator.get_bucket_size();
   }
 private:
-  grid_translator<FieldType,Dimension,EdgeLayer> _translator;
+  grid_translator<Field_type,Dimension,Edge_layer> _translator;
   
-  util::multi_array<ValueType> _data;
+  util::multi_array<Value_type> _data;
 
   scalar_array_type _stepwidths;
   scalar_array_type _half_stepwidth;

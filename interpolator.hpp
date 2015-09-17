@@ -317,15 +317,21 @@ class deflection_angle_taylor_interpolator
 public:
   typedef Vector_type position_vector_type;
   typedef std::array<Vector_type, 4> eval_values_storage_type;
+  typedef util::matrix_nxn<Vector_type, 4> eval_values_matrix_type;
+  
+  static constexpr unsigned num_samples_x = 2;
+  static constexpr unsigned num_samples_y = 2;
   
   deflection_angle_taylor_interpolator() = default;
   deflection_angle_taylor_interpolator(const position_vector_type& min_extent,
                                        const position_vector_type& max_extent)
   : _min_corner(min_extent)
   {
-    // Currently, only square cells are supported
-    assert((max_extent[0] - min_extent[0]) == (max_extent[1] - min_extent[0]));
-    
+    // Currently, only square cells are supported (the assertion had to be 
+    // commented out because it may trigger due to rounding errors, especially
+    // when using float)
+    // assert((max_extent[0] - min_extent[0]) == (max_extent[1] - min_extent[0]));
+
     _delta = max_extent[0] - min_extent[0];
     _center = _min_corner;
     for(std::size_t i = 0; i < _center.size(); ++i)
@@ -352,6 +358,35 @@ public:
     init(corner_values);
   }
   
+  void init(const eval_values_matrix_type& corner_values)
+  {
+    eval_values_storage_type values;
+    values[2] = corner_values[0][0];
+    values[3] = corner_values[1][0];
+    values[1] = corner_values[0][1];
+    values[0] = corner_values[1][1];
+    init(values);
+  }
+  
+  template<class Function>
+  void foreach_evaluation_point(Function fn) const
+  {
+    util::matrix_nxn<unsigned, 2> index_map;
+    index_map[0][0] = 2;
+    index_map[1][0] = 3;
+    index_map[0][1] = 1;
+    index_map[1][1] = 0;
+      
+    for(unsigned i = 0; i < 2; ++i)
+      for(unsigned j = 0; j < 2; ++j)
+      {
+        position_vector_type position = _min_corner;
+        
+        position[0] += i * _delta;
+        position[1] += j * _delta;
+        fn(position, index_map[i][j], i, j);
+      }
+  }
   
   void init(const eval_values_storage_type& corner_values)
   {
@@ -424,6 +459,22 @@ public:
     
     return result;
   }
+  
+  static inline void set_eval_value(eval_values_matrix_type& m,
+                                    unsigned i, 
+                                    unsigned j, 
+                                    const Vector_type& x)
+  {
+    m[i][j] = x;
+  }
+  
+  static inline Vector_type get_eval_value(const eval_values_matrix_type& m,
+                                           unsigned i,
+                                           unsigned j)
+  {
+    return m[i][j];
+  }
+  
   
 private:
   T _delta;

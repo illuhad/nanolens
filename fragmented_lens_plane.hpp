@@ -117,35 +117,44 @@ public:
   /// source plane rectangle
   /// @param out A matrix into which the resulting coordinates in the lens plane
   /// will be written.
-  void estimate_mapped_area_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
-                                        util::matrix_nxn<util::vector2, 2>& out) const
+  void estimate_mapped_region_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
+                                          util::matrix_nxn<util::vector2, 2>& out) const
   {
-    util::matrix<util::vector2, 2> coordinates = source_plane_coordinates;
-    util::scalar x_center = 
-      0.5 * (source_plane_coordinates[0][0] + source_plane_coordinates[1][0]);
+    assert(_current_fragment != nullptr);
     
+    util::matrix_nxn<util::vector2, 2> coordinates = source_plane_coordinates;    
     coordinates[0][0][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
     coordinates[0][1][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
     
     // Get results for the left side of the region from the lens plane fragment
+    util::matrix_nxn<util::vector2, 2> left_coordinates;
+    this->_current_fragment->estimate_mapped_region_coordinates(coordinates, left_coordinates);
     
     coordinates[1][0][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
     coordinates[1][1][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
     
     // Get results for the right side of the region
+    util::matrix_nxn<util::vector2, 2> right_coordinates;
+    this->_current_fragment->estimate_mapped_region_coordinates(coordinates, right_coordinates);
     
     // Add results
-    
-    for(std::size_t i = 0; i < 2; ++i)
+    for(std::size_t j = 0; j < 2; ++j)
     {
-      for(std::size_t j = 0; j < 2; ++j)
-      {
-        // Transform to the origin
-        util::sub(coordinates[i][j], _current_fragment_center);
-        
-        out[i][j] = source_plane_coordinates[i][j];
-        util::add(out[i][j], coordinates[i][j]);
-      }
+      // Transform to the origin
+      left_coordinates[0][j][0] -= _current_fragment_center[0];
+      left_coordinates[0][j][0] += 0.5 * _fragment_size;
+
+      out[0][j] = left_coordinates[0][j];
+      out[0][j][0] += source_plane_coordinates[0][j][0];
+    }
+    for(std::size_t j = 0; j < 2; ++j)
+    {
+      // Transform to the origin
+      right_coordinates[1][j][0] -= _current_fragment_center[0];
+      right_coordinates[1][j][0] -= 0.5 * _fragment_size;
+
+      out[1][j] = right_coordinates[1][j];
+      out[1][j][0] += source_plane_coordinates[1][j][0];
     }
   }
   

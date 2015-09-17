@@ -17,6 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/// @file This file contains the implementation of the widely used inverse
+/// ray shooting method. I.e. rays are shot backwards from the observer
+/// to the source and counted in the pixels of a screen in the source plane.
+/// The number of rays in one pixel is then proportional to the pixel's magnification.
+
 #ifndef INVERSE_RAY_SHOOTING_HPP
 #define	INVERSE_RAY_SHOOTING_HPP
 
@@ -42,15 +47,28 @@ public:
     _center = s.get_properties().get_screen_position();
     
     util::vector2 screen_size = s.get_properties().get_physical_size();
-    
-    // TODO Change this such that gamma is simply 0.0. if the lens_plane does
-    // not support shear
-    util::scalar gamma = sys.get_deflector().get_shear();
-    util::scalar sigma = sys.get_deflector().get_mean_surface_density();
 
+    util::vector2 screen_min_corner = s.get_properties().get_corner_of_min_extent();
+    
+    util::matrix_nxn<util::vector2, 2> corner_coordinates;
+    for(std::size_t i = 0; i < 2; ++i)
+      for(std::size_t j = 0; j < 2; ++j)
+      {
+        corner_coordinates[i][j] = screen_min_corner;
+        util::vector2 offset = screen_size;
+        offset[0] *= i;
+        offset[1] *= j;
+        
+        util::add(corner_coordinates[i][j], offset);
+      }
+    
+    util::matrix_nxn<util::vector2, 2> shooting_region_corners;
+    sys.get_deflector().estimate_mapped_region_coordinates(corner_coordinates, 
+                                                           shooting_region_corners);
+    
     _shooting_region_size = 
-        {(screen_size[0] + overshooting_area_size) / std::abs((1 - sigma - gamma)),
-         (screen_size[1] + overshooting_area_size) / std::abs((1 - sigma + gamma))};
+      {shooting_region_corners[1][0][0] - shooting_region_corners[0][0][0] + overshooting_area_size,
+       shooting_region_corners[0][1][1] - shooting_region_corners[0][0][1] + overshooting_area_size};
     
     util::vector2 half_shooting_region_size = _shooting_region_size;
     util::scale(half_shooting_region_size, 0.5);
@@ -199,14 +217,20 @@ public:
     
     handler(status_info("Scheduling complete", &schedule, ""));
     
-    // Calculate start ray position for this process
-    ray_position = min_corner;
-    ray_position[0] += schedule.get_ownership_range_begin() * step_sizes[0];
+    // Use double precision for the position of the ray to avoid rounding errors
+    // for large shooting regions
+    std::array<double, 2> double_min_corner = {static_cast<double>(min_corner[0]),
+                                               static_cast<double>(min_corner[1])};
+    std::array<double, 2> double_stepwidth = {static_cast<double>(step_sizes[0]),
+                                              static_cast<double>(step_sizes[1])};
     
     std::size_t num_jobs_completed = 0;
     for(std::size_t x_idx = schedule.get_ownership_range_begin();
             x_idx <= schedule.get_ownership_range_end(); ++x_idx)
     {
+      ray_position[0] = double_min_corner[0]
+                      + x_idx * double_stepwidth[0];
+      
       util::scalar progress = static_cast<util::scalar>(num_jobs_completed) /
         static_cast<util::scalar>(schedule.get_num_assigned_jobs());
       
@@ -214,17 +238,20 @@ public:
       
       for(std::size_t y_idx = 0; y_idx < n_rays_y; ++y_idx)
       {
-        util::vector2 impact_position = sys.lensing_transformation(ray_position);
+        ray_position[1] = double_min_corner[1]
+                        + y_idx * double_stepwidth[1];
+        
+        util::vector2 cast_ray_position = {static_cast<util::scalar>(ray_position[0]),
+                                           static_cast<util::scalar>(ray_position[1])};
+        
+        util::vector2 impact_position = sys.lensing_transformation(cast_ray_position);
 
         std::array<std::size_t, 2> pixel_idx = pixel_grid_translator(impact_position);
 
         if(this->_screen->get_pixels().is_within_bounds(pixel_idx.data()))
           this->_screen->get_pixels()[pixel_idx.data()] += magnification_per_ray;
 
-        ray_position[1] += step_sizes[1];
       }
-      ray_position[1] = min_corner[1];
-      ray_position[0] += step_sizes[0];
       
       ++num_jobs_completed;
     }

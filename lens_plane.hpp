@@ -247,15 +247,6 @@ public:
   inline std::size_t num_stars() const
   { return _deflectors.size(); }
 
-  template<class RayBundleType>
-  const_star_iterator find_star_in_bundle_area(const RayBundleType& bundle) const
-  {
-    for(auto it = _deflectors.begin(); it != _deflectors.end(); ++it)
-      if(bundle.covered_area_contains_point_in_deflection_plane(it->get_position()))
-        return it;
-    return _deflectors.end();
-  }
-
   util::scalar find_squared_distance_to_nearest_star(const util::vector2& position) const
   {
     auto nearest_star = get_nearest_star(position);
@@ -330,12 +321,14 @@ public:
   /// source plane rectangle
   /// @param out A matrix into which the resulting coordinates in the lens plane
   /// will be written.
-  void estimate_mapped_area_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
+  void estimate_mapped_region_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
                                         util::matrix_nxn<util::vector2, 2>& out) const
   {
-    // out = (shear_matrix - diag(smooth_matter))^-1 * x
+    // out = (shear_matrix - diag(sigma_total))^-1 * x
     // (The smooth matter term is already contained in the shear matrix)
     util::matrix_nxn<util::scalar, 2> lensing_transformation = _shear_matrix;
+    lensing_transformation[0][0] -= _sigma_star;
+    lensing_transformation[1][1] -= _sigma_star;
     
     util::matrix_nxn<util::scalar, 2> inverted_lensing_transformation;
     numeric::invert_matrix(lensing_transformation, inverted_lensing_transformation);

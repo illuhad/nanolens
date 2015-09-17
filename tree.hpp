@@ -17,6 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/// @file This file contains an implementation of the classic tree code
+/// to accelerate the calculation of deflection angles due to many stars.
+/// The implementation includes the optimizations described by
+/// Wambsganss, Joachim (1999). "Gravitational lensing: numerical simulations 
+/// with a hierarchical tree code".
+/// Journal of Computational and Applied Mathematics 109.1–2, pp. 353–372.
+
 #ifndef TREE_HPP
 #define	TREE_HPP
 
