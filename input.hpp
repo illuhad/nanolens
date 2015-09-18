@@ -105,6 +105,9 @@ public:
     post_processing_step_descriptor()
     {}
     
+    post_processing_step_descriptor(const boost::property_tree::ptree::value_type& v)
+    : _config_node(v) {}
+    
     const std::string& get_fits_input() const
     { return _fits_input; }
     
@@ -117,6 +120,7 @@ public:
     std::string _fits_input;
     std::string _fits_output;
     post_processing_step_type _type;
+    boost::property_tree::ptree::value_type _config_node;
   };
   
   enum method_type
