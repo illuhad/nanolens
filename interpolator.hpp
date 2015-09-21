@@ -333,9 +333,11 @@ public:
     // assert((max_extent[0] - min_extent[0]) == (max_extent[1] - min_extent[0]));
 
     _delta = max_extent[0] - min_extent[0];
+
     _center = _min_corner;
-    for(std::size_t i = 0; i < _center.size(); ++i)
-      _center[i] += 0.5 * _delta;
+    util::add(_center, max_extent);
+    util::scale(_center, 0.5);
+
   }
   
   deflection_angle_taylor_interpolator(const position_vector_type& center,
@@ -478,6 +480,7 @@ public:
   
 private:
   T _delta;
+
   std::array<T, 8> _coefficients;
   position_vector_type _min_corner;
   position_vector_type _center;

@@ -23,6 +23,7 @@
 
 #include <boost/foreach.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ptree_serialization.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/serialization/array.hpp>
 #include <boost/serialization/vector.hpp>
@@ -36,6 +37,8 @@ namespace nanolens{
 class configuration
 {
 public:
+  typedef const boost::property_tree::ptree::value_type config_node;
+  
   class random_distribution_descriptor
   {
     
@@ -61,14 +64,6 @@ public:
     util::scalar _center;
     util::scalar _width;
     
-    friend class boost::serialization::access;
-    template<class Archive>
-    void serialize(Archive & ar, const unsigned int version)
-    {
-      ar & _type;
-      ar & _center;
-      ar & _width;
-    }
   };
   
   struct random_star_generator_descriptor
@@ -81,17 +76,6 @@ public:
     bool circularize;
     util::scalar circularization_radius;
         
-    friend class boost::serialization::access;
-    template<class Archive>
-    void serialize(Archive & ar, const unsigned int version)
-    {
-      ar & x_distribution;
-      ar & y_distribution;
-      ar & mass_distribution;
-      ar & num_stars;
-      ar & circularize;
-      ar & circularization_radius;
-    }
   };
   
   enum post_processing_step_type
@@ -102,11 +86,23 @@ public:
   class post_processing_step_descriptor
   {
   public:
+    typedef const boost::property_tree::ptree::value_type config_node;
+    
     post_processing_step_descriptor()
     {}
     
-    post_processing_step_descriptor(const boost::property_tree::ptree::value_type& v)
-    : _config_node(v) {}
+    post_processing_step_descriptor(const config_node& v, const configuration& config)
+    : _config_node(v)
+    {
+      _fits_input = config.get_property(v, "fits_input", std::string());
+      _fits_output = config.get_property(v, "fits_output", std::string());
+      
+      std::string type = config.get_config_node_type(v, "");
+      
+      if(type == "direct_convolution")
+        _type = DIRECT_CONVOLUTION;
+      else throw std::invalid_argument("Invalid postprocessing type: "+type);
+    }
     
     const std::string& get_fits_input() const
     { return _fits_input; }
@@ -116,11 +112,14 @@ public:
     
     post_processing_step_type get_type() const
     { return _type; }
+    
+    const config_node& get_config_node() const
+    { return _config_node; }
   private:
     std::string _fits_input;
     std::string _fits_output;
     post_processing_step_type _type;
-    boost::property_tree::ptree::value_type _config_node;
+    config_node _config_node;
   };
   
   enum method_type
@@ -145,68 +144,69 @@ public:
   
   void load_from_file(const std::string& filename)
   {
-    if(_comm.rank() == _master_rank)
+    boost::property_tree::xml_parser::read_xml(filename, _tree);
+    boost::mpi::broadcast(_comm, _tree, _master_rank);
+
+    _screen_pos = get_vector2_property("nanolens.screen.position", util::vector2({0.0, 0.0}));
+    _screen_size = get_vector2_property("nanolens.screen.physical_size", util::vector2({10.0, 10.0}));
+
+    _resolution = get_vector2_property("nanolens.screen.num_pixels", std::array<std::size_t, 2>({100, 100}));
+
+    _fits_output = get_property<std::string>("nanolens.fits_output", std::string());
+    _raw_output = get_property<std::string>("nanolens.raw_output", std::string());
+
+    load_method();
+    load_lens_plane_type();
+
+    BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
+            _tree.get_child("nanolens.system.lens_plane"))
     {
-      boost::property_tree::xml_parser::read_xml(filename, _tree);
-      
-
-      _screen_pos = get_vector("nanolens.screen.position", util::vector2({0.0, 0.0}));
-      _screen_size = get_vector("nanolens.screen.physical_size", util::vector2({10.0, 10.0}));
-
-      _resolution = get_vector("nanolens.screen.num_pixels", std::array<std::size_t, 2>({100, 100}));
-      
-      _fits_output = get<std::string>("nanolens.fits_output", std::string());
-      _raw_output = get<std::string>("nanolens.raw_output", std::string());
-      
-      load_method();
-      load_lens_plane_type();
-      
-      BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
-              _tree.get_child("nanolens.system.lens_plane"))
+      if(v.first == "star_generator")
       {
-        try
+        std::string type = v.second.get<std::string>("<xmlattr>.type");
+
+        if(type == "from_random_distribution")
         {
-          if(v.first == "star_generator")
+          random_star_generator_descriptor star_gen_descr;
+          star_gen_descr.num_stars = v.second.get<std::size_t>("<xmlattr>.num_stars");
+          star_gen_descr.x_distribution = get_random_distribution(v, "x");
+          star_gen_descr.y_distribution = get_random_distribution(v, "y");
+          star_gen_descr.mass_distribution = get_random_distribution(v, "mass");
+
+          if(v.second.find("circularize") != v.second.not_found())
           {
-            std::string type = v.second.get<std::string>("<xmlattr>.type");
-
-            if(type == "from_random_distribution")
-            {
-              random_star_generator_descriptor star_gen_descr;
-              star_gen_descr.num_stars = v.second.get<std::size_t>("<xmlattr>.num_stars");
-              star_gen_descr.x_distribution = get_random_distribution(v, "x");
-              star_gen_descr.y_distribution = get_random_distribution(v, "y");
-              star_gen_descr.mass_distribution = get_random_distribution(v, "mass");
-              
-              if(v.second.find("circularize") != v.second.not_found())
-              {
-                star_gen_descr.circularize = true;
-                star_gen_descr.circularization_radius = v.second.get<util::scalar>("circularize.<xmlattr>.radius");
-              }
-              else
-              {
-                star_gen_descr.circularize = false;
-                star_gen_descr.circularization_radius = 0.0;
-              }
-
-              _random_star_generators.push_back(star_gen_descr);
-            }
-            else if(type == "from_file")
-            {
-              std::string filename = v.second.get<std::string>("<xmlattr>.filename");
-              _star_files.push_back(filename);
-            }
+            star_gen_descr.circularize = true;
+            star_gen_descr.circularization_radius = v.second.get<util::scalar>("circularize.<xmlattr>.radius");
           }
+          else
+          {
+            star_gen_descr.circularize = false;
+            star_gen_descr.circularization_radius = 0.0;
+          }
+
+          _random_star_generators.push_back(star_gen_descr);
         }
-        catch(...)
-        {}
+        else if(type == "from_file")
+        {
+          std::string filename = v.second.get<std::string>("<xmlattr>.filename");
+          _star_files.push_back(filename);
+        }
       }
-      
-      _shear = get<util::scalar>("nanolens.system.lens_plane.shear", 0.0);
-      _sigma_smooth = get<util::scalar>("nanolens.system.lens_plane.sigma_smooth", 0.0);
-      _shear_rotation_angle = get<util::scalar>("nanolens.system.lens_plane.shear_rotation_angle", 0.0);
     }
-    boost::mpi::broadcast(_comm, *this, _master_rank);
+
+    _shear = get_property<util::scalar>("nanolens.system.lens_plane.shear", 0.0);
+    _sigma_smooth = get_property<util::scalar>("nanolens.system.lens_plane.sigma_smooth", 0.0);
+    _shear_rotation_angle = get_property<util::scalar>("nanolens.system.lens_plane.shear_rotation_angle", 0.0);
+
+    BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
+            _tree.get_child("nanolens.post_processing"))
+    {
+      if(v.first == "step")
+      {
+        post_processing_step_descriptor step(v, *this);
+        this->_post_processing_steps.push_back(step);
+      }
+    }
   }
   
   const std::array<std::size_t, 2>& get_resolution() const
@@ -278,18 +278,13 @@ public:
       return EXACT;
     else if(type == "tree")
       return TREE;
-    else return EXACT;
+    else throw std::invalid_argument("Invalid deflection engine: "+type);
   }
   
   template<class T>
   T get_namespace_property(const std::string& nspace, const std::string& property, const T& default_value) const
   {
-    T result;
-    if(_comm.rank() == _master_rank)
-      result =  get("nanolens."+nspace+"."+property, default_value);
-    
-    boost::mpi::broadcast(_comm, result, _master_rank);
-    return result;
+    return get_property("nanolens."+nspace+"."+property, default_value);
   }
   
   template<class T>
@@ -297,12 +292,26 @@ public:
                                                  const std::string& property,
                                                  const std::array<T,2>& default_val) const
   {
-    std::array<T,2> result;
-    if(_comm.rank() == _master_rank)
-      result = get_vector("nanolens."+nspace+"."+property, default_val);
-    
-    boost::mpi::broadcast(_comm, result, _master_rank);
-    return result;
+    return get_vector2_property("nanolens."+nspace+"."+property, default_val);
+  }
+  
+  template<class T>
+  T get_config_node_property(const config_node& node, const std::string& property, const T& default_value) const
+  {
+    return get_property(node, property, default_value);
+  }
+  
+  std::string get_config_node_type(const config_node& node, const std::string& default_value) const
+  {
+    return get_property(node, "<xmlattr>.type", default_value);
+  }
+  
+  template<class T>
+  std::array<T,2> get_config_node_vector2_property(const config_node& node, 
+                                                 const std::string& property,
+                                                 const std::array<T,2>& default_val) const
+  {
+    return get_vector2_property(node, property, default_val);
   }
   
   method_type get_method_type() const
@@ -322,19 +331,19 @@ public:
 private:
   void load_method()
   {
-    std::string method_string = get<std::string>(
+    std::string method_string = get_property<std::string>(
       "nanolens.method.<xmlattr>.type",
       "inverse_ray_shooting");
     
     if(method_string == "inverse_ray_shooting")
       _method = INVERSE_RAY_SHOOTING;
     else
-      _method = INVERSE_RAY_SHOOTING;
+      throw std::invalid_argument("Invalid method: " + method_string);
   }
   
   void load_lens_plane_type()
   {
-    std::string type_string = get<std::string>("nanolens.system.lens_plane.<xmlattr>.type",
+    std::string type_string = get_property<std::string>("nanolens.system.lens_plane.<xmlattr>.type",
                                                "microlensing_lens_plane");
     
     if(type_string == "microlensing_lens_plane")
@@ -342,11 +351,11 @@ private:
     else if(type_string == "fragmented_microlensing_lens_plane")
       _lens_plane_type = FRAGMENTED_MICROLENSING;
     else
-      _lens_plane_type = MICROLENSING;
+      throw std::invalid_argument("Invalid lens plane type: " + type_string);
   }
   
   template<class T>
-  T get(const std::string& identifier, const T& default_parameter) const
+  T get_property(const std::string& identifier, const T& default_parameter) const
   {
     try
     {
@@ -359,20 +368,35 @@ private:
   }
   
   template<class T>
-  std::array<T,2> get_vector(const std::string& id, const std::array<T,2>& default_val) const
+  T get_property(const config_node& node, const std::string& identifier, const T& default_parameter) const
+  {
+    try
+    {
+      return node.second.get<T>(identifier);
+    }
+    catch(...)
+    {
+      return default_parameter;
+    }
+  }
+  
+  template<class T>
+  std::array<T,2> get_vector2_property(const std::string& id, const std::array<T,2>& default_val) const
   {
     std::array<T,2> result;
-    result[0] = get<T>(id + ".<xmlattr>.x", default_val[0]);
-    result[1] = get<T>(id + ".<xmlattr>.y", default_val[1]);
+    result[0] = get_property<T>(id + ".<xmlattr>.x", default_val[0]);
+    result[1] = get_property<T>(id + ".<xmlattr>.y", default_val[1]);
     return result;
   }
   
-  util::vector2 get_vector(const boost::property_tree::ptree::value_type& v,
-                           const std::string& id)
+  template<class T>
+  util::vector2 get_vector2_property(const config_node& v,
+                           const std::string& id,
+                           const std::array<T,2>& default_val) const
   {
     util::vector2 result;
-    result[0] = v.second.get<util::scalar>(id + ".<xmlattr>.x");
-    result[1] = v.second.get<util::scalar>(id + ".<xmlattr>.y");
+    result[0] = v.second.get<util::scalar>(id + ".<xmlattr>.x", default_val[0]);
+    result[1] = v.second.get<util::scalar>(id + ".<xmlattr>.y", default_val[1]);
     return result;
   }
   
@@ -448,6 +472,8 @@ private:
     ar & _raw_output;
     ar & _method;
     ar & _lens_plane_type;
+    ar & _post_processing_steps;
+    ar & _tree;
   }
 };
 

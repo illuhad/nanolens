@@ -91,7 +91,7 @@ public:
   }
   
   template<std::size_t N_dimensions>
-  void load(const std::string& filename, util::multi_array<T>& out) const
+  void load(util::multi_array<T>& out) const
   {
     static_assert(N_dimensions > 0, "Number of dimensions cannot be zero.");
     
@@ -100,32 +100,51 @@ public:
     int bitpix, naxis_flag;
     std::vector<long> naxes(N_dimensions, 0);
     
-    if(!fits_open_file(&file, filename.c_str(), READONLY, &status))
+    if(!fits_open_file(&file, _filename.c_str(), READONLY, &status))
     {
       if(!fits_get_img_param(file, N_dimensions, &bitpix, &naxis_flag, naxes.data(), 
                              &status))
       {
-        out = util::multi_array<T>(naxes);
+        std::vector<std::size_t> array_sizes;
+        array_sizes.reserve(N_dimensions);
+        for(long element : naxes)
+          array_sizes.push_back(static_cast<std::size_t>(element));
+        
+        out = util::multi_array<T>(array_sizes);
         
         long fpixel [N_dimensions];
-        for(std::size_t i = 1; i < N_dimensions; ++i)
+        for(std::size_t i = 0; i < N_dimensions; ++i)
           fpixel[i] = 1;
-        
-        long num_elements = out.size();
-        
-        fits_read_pix(file,
-                      fits_datatype<T>::datatype(), 
-                      fpixel, 
-                      num_elements, 
-                      NULL, 
-                      out.data(), 
-                      NULL, 
-                      &status);
+   
+        std::vector<T> row_buffer(naxes[0], T());
+        for(fpixel[1] = 1; fpixel[1] <= naxes[1]; ++fpixel[1])
+        {
+          if(fits_read_pix(file,
+                        fits_datatype<T>::datatype(), 
+                        fpixel, 
+                        naxes[0], 
+                        NULL, 
+                        row_buffer.data(), 
+                        NULL, 
+                        &status))
+          {
+            throw std::runtime_error("Error while loading fits file: "+std::to_string(status));
+          }
+          
+          for(std::size_t i = 0; i < row_buffer.size(); ++i)
+          {
+            std::array<std::size_t, 2> current_pixel = 
+                    {i, static_cast<std::size_t>(fpixel[1] - 1)};
+            
+            out[current_pixel.data()] = row_buffer[i];
+          }
+        }
       }
+      
+      fits_close_file(file, &status);
     }
     else
-      throw std::runtime_error(std::string("Could not load fits file: ") + filename);
-    
+      throw std::runtime_error(std::string("Could not load fits file: ") + _filename);
   }
   
 private:

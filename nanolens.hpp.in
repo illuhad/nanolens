@@ -30,6 +30,8 @@
 #define NANOLENS_TARGET_SYSTEM TO_STRING(@CMAKE_SYSTEM@)
 #define NANOLENS_BUILD_TYPE TO_STRING(@CMAKE_BUILD_TYPE@)
 #define NANOLENS_COMPILER TO_STRING(@CMAKE_CXX_COMPILER@)
+#define NANOLENS_COMPILER_ID TO_STRING(@CMAKE_CXX_COMPILER_ID@)
+#define NANOLENS_COMPILER_VERSION TO_STRING(@CMAKE_CXX_COMPILER_VERSION@)
 #define NANOLENS_COMPILER_FLAGS TO_STRING(@CMAKE_CXX_FLAGS@)
 #define NANOLENS_PROCESSOR_TYPE TO_STRING(@CMAKE_SYSTEM_PROCESSOR@)
 
@@ -62,6 +64,16 @@ struct build_info
   static std::string get_compiler()
   {
     return std::string(NANOLENS_COMPILER);
+  }
+
+  static std::string get_compiler_id()
+  {
+    return std::string(NANOLENS_COMPILER_ID);
+  }
+
+  static std::string get_compiler_version()
+  {
+    return std::string(NANOLENS_COMPILER_VERSION);
   }
 
   static std::string get_compiler_flags()

@@ -31,4 +31,12 @@
   </method>
   <fits_output>output.fits</fits_output>
   <!--<raw_output>output.raw</raw_output>-->
+  <post_processing>
+    <step type="direct_convolution">
+      <kernel type="shakura_sunyaev">
+        <radius>1.0</radius>
+      </kernel>
+      <fits_output>output_convolved.fits</fits_output>
+    </step>
+  </post_processing>
 </nanolens>

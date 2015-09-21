@@ -8,8 +8,8 @@ cmake_minimum_required (VERSION 2.6)
 project (nanolens)
 
 set(nanolens_VERSION_MAJOR 2)
-set(nanolens_VERSION_MINOR 97)
-set(nanolens_VERSION_PATCH 18)
+set(nanolens_VERSION_MINOR 99)
+set(nanolens_VERSION_PATCH 0)
 
 # configure a header file to pass some of the CMake settings
 # to the source code
@@ -23,6 +23,7 @@ configure_file (
 include_directories("${PROJECT_BINARY_DIR}")
 
 add_executable(nanolens nanolens.cpp nanolens.xml)
+add_executable(nanopostprocess nanopostprocess.cpp)
 
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -59,6 +60,7 @@ set(LIBS ${LIBS} ${BOOST_LIBRARIES})
 
 include_directories(${BOOST_INCLUDE_DIRS})
 target_link_libraries (nanolens boost_serialization boost_mpi cfitsio)
+target_link_libraries (nanopostprocess boost_serialization boost_mpi cfitsio)
 
 add_custom_command(TARGET nanolens POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy

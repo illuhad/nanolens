@@ -391,7 +391,7 @@ private:
   struct interpolation_cell
   {
     typedef standard_vector2_interpolator interpolator_type;
-    
+
     static const std::size_t num_interpolators = 3;
     
     std::array<std::array<interpolator_type, num_interpolators>, num_interpolators> far_cell_interpolators;
@@ -449,7 +449,6 @@ private:
                             entry.close_lenses,
                             far_cells);
 
-
     util::vector2 half_bucket_size = cell_size;
     util::scale(half_bucket_size, 0.5);
 
@@ -482,7 +481,6 @@ private:
         entry.far_cell_interpolators[i][j]
             = interpolation_cell::interpolator_type(interpolation_cell_min_extent,
                                                     interpolation_cell_max_extent);
-
       
         interpolation_cell_min_extent[1] += interpolation_cell_size[1];
         interpolation_cell_max_extent[1] += interpolation_cell_size[1];

@@ -24,6 +24,7 @@
 #include "grid.hpp"
 #include "status.hpp"
 #include "scheduler.hpp"
+#include "fits.hpp"
 
 namespace nanolens{
 
@@ -36,16 +37,16 @@ public:
   
   virtual ~convolution(){}
   
-  typedef std::function<Scalar_type (const Vector_type&)> functional_convolution_kernel_type;
   typedef util::multi_array<Scalar_type>                  discrete_convolution_kernel_type;
   typedef util::multi_array<Scalar_type> array_type;
   
-  virtual void run(const array_type& input, 
-                   const util::vector2& input_min_extent,
-                   const util::vector2& input_max_extent,
-                   const functional_convolution_kernel_type& kernel,
-                   util::scalar kernel_evaluation_diameter,
-                   array_type& output)
+  template<class Functional_convolution_kernel_type>
+  void run(const array_type& input, 
+           const util::vector2& input_min_extent,
+           const util::vector2& input_max_extent,
+           const Functional_convolution_kernel_type& kernel,
+           util::scalar kernel_evaluation_diameter,
+           array_type& output)
   {
     // Start by filling a grid with evaluations of the kernel function
     util::vector2 pixel_size = input_max_extent;
@@ -62,11 +63,11 @@ public:
     
     array_type kernel_array(num_kernel_pixels[0], num_kernel_pixels[1]);
     
-    util::vector2 kernel_min_extent = {-0.5 * expected_kernel_diameter[0], 
-                                       -0.5 * expected_kernel_diameter[1]};
+    util::vector2 kernel_min_extent = {-expected_kernel_diameter[0] / 2, 
+                                       -expected_kernel_diameter[1] / 2};
     
-    util::vector2 kernel_max_extent = { 0.5 * expected_kernel_diameter[0], 
-                                        0.5 * expected_kernel_diameter[1]};
+    util::vector2 kernel_max_extent = { expected_kernel_diameter[0] / 2, 
+                                        expected_kernel_diameter[1] / 2};
     
     util::grid_translator<util::scalar, 2, false> translator(kernel_min_extent,
                                                              kernel_max_extent, 
@@ -100,8 +101,8 @@ template<typename Scalar_type, class Vector_type>
 class direct_convolution : public convolution<Scalar_type, Vector_type>
 {
 public:
-  
-  using typename convolution<Scalar_type, Vector_type>::convolution_kernel_type;
+  using convolution<Scalar_type, Vector_type>::run;
+  using typename convolution<Scalar_type, Vector_type>::discrete_convolution_kernel_type;
   using typename convolution<Scalar_type, Vector_type>::array_type;
   typedef std::array<std::size_t, 2> pixel_index_type;
   
@@ -114,16 +115,20 @@ public:
                    const discrete_convolution_kernel_type& kernel,
                    array_type& output)
   {
-    std::fill(output, 0.0);
-    
+    if(this->_comm.rank() == 1)
+    {
+      util::fits<util::scalar> kernel_file("kernel.fits");
+      kernel_file.save(kernel);
+    }
     assert(input.get_dimension() == 2);
     assert(kernel.get_dimension() == 2);
     
     output = array_type(input.get_extent_of_dimension(0), input.get_extent_of_dimension(1));
-    
+    std::fill(output.begin(), output.end(), 0.0);
+   
     this->_handler(status_info("Scheduling direct convolution"));
     
-    scheduler job_schedule(this->_comm);
+    scheduler job_scheduler(this->_comm);
     util::scalar dummy_sum = 0.0;
     job_scheduler.autosized_run(input.get_extent_of_dimension(0), 
       [&](std::size_t test_ray_index, std::size_t num_tests)
@@ -135,16 +140,16 @@ public:
       }, 
     2.0);
       
-    this->_handler(status_info("Scheduling complete", &job_schedule, ""));
+    this->_handler(status_info("Scheduling complete", &job_scheduler, ""));
     
     std::size_t num_jobs_completed = 0;
-    for(std::size_t x = job_schedule.get_ownership_range_begin();
-            x <= job_schedule.get_ownership_range_end(); ++x)
+    for(std::size_t x = job_scheduler.get_ownership_range_begin();
+            x <= job_scheduler.get_ownership_range_end(); ++x)
     {
       util::scalar progress = static_cast<util::scalar>(num_jobs_completed) /
-        static_cast<util::scalar>(schedule.get_num_assigned_jobs());
+        static_cast<util::scalar>(job_scheduler.get_num_assigned_jobs());
       
-      handler(status_info("Convolving", nullptr, "", progress));
+      this->_handler(status_info("Convolving", nullptr, "", progress));
       
       for(std::size_t y = 0; y < input.get_extent_of_dimension(1); ++y)
       {
@@ -152,9 +157,11 @@ public:
         output[current_pixel.data()] = 
                 get_convolved_pixel_value(input, kernel, current_pixel);
       }
+      
+      ++num_jobs_completed;
     }
     
-    handler(status_info("Waiting for processes...\n"));
+    this->_handler(status_info("Waiting for processes...\n"));
     
     auto add =  [](util::scalar& a, util::scalar b){ a += b;};
     output.reduce_parallel_array(this->_comm, 0, add);
@@ -177,12 +184,22 @@ private:
       {
         std::size_t j_flipped = kernel.get_extent_of_dimension(1) - j - 1;
         
-        std::array<long long int, 2> input_pixel = {px[0] + i - kernel_center[0],
-                                                    px[1] + j - kernel_center[1]};
+        long long int input_pixel0 = 
+              static_cast<long long int>(px[0] + i - kernel_center[0]);
+        long long int input_pixel1 =
+              static_cast<long long int>(px[1] + j - kernel_center[1]);
         
-        if(input_pixel[0] >= 0 && input_pixel[0] <= input.get_extent_of_dimension(0) &&
-           input_pixel[1] >= 0 && input_pixel[1] <= input.get_extent_of_dimension(1))
-          sum += input[input_pixel[0]][input_pixel[1]] * kernel[i_flipped][j_flipped];
+        pixel_index_type kernel_pixel = {i_flipped, j_flipped};
+        
+        if(input_pixel0 >= 0 && 
+           input_pixel0 < static_cast<long long int>(input.get_extent_of_dimension(0)) &&
+           input_pixel1 >= 0 && 
+           input_pixel1 < static_cast<long long int>(input.get_extent_of_dimension(1)))
+        {
+          pixel_index_type input_pixel = {static_cast<std::size_t>(input_pixel0), 
+                                          static_cast<std::size_t>(input_pixel1)};
+          sum += input[input_pixel.data()] * kernel[kernel_pixel.data()];
+        }
       }
     }
     
@@ -194,8 +211,7 @@ template<typename Scalar_type, class Vector_type>
 class fftw_convolution : public convolution<Scalar_type, Vector_type>
 {
 public:
-  
-  using typename convolution<Scalar_type, Vector_type>::convolution_kernel_type;
+  using typename convolution<Scalar_type, Vector_type>::discrete_convolution_kernel_type;
   using typename convolution<Scalar_type, Vector_type>::array_type;
   
   fftw_convolution(const boost::mpi::communicator& comm,

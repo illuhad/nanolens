@@ -17,29 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <iostream>
-#include <iomanip>
-#include <exception>
-#include "render_engine.hpp"
-#include "timer.hpp"
-#include "system.hpp"
-#include "star_generator.hpp"
-#include "input.hpp"
-#include "status_handler.hpp"
-#include "launch.hpp"
-#include "nanolens.hpp"
 #include "postprocessing.hpp"
+#include "nanolens.hpp"
 
-
-
-int main(int argc, char** argv) 
-{ 
+int main(int argc, char* argv [])
+{
   boost::mpi::environment env(argc, argv);
   boost::mpi::communicator world;
-
+  
   nanolens::util::master_ostream master_cout(std::cout, 0);
 
-  master_cout << "nanolens Copyright (C) 2015 Aksel Alpay\n"
+  master_cout << "nanopostprocess Copyright (C) 2015 Aksel Alpay\n"
     "This program comes with ABSOLUTELY NO WARRANTY; It is free software,\n"
     "and you are welcome to redistribute it under the conditions of the\n"
     "GNU General Public License v3.\n\n"
@@ -73,7 +61,7 @@ int main(int argc, char** argv)
                                                                                 
 
   
-  master_cout << "nanolens version " << nanolens::build_info::get_version_string() 
+  master_cout << "nanopostprocess version " << nanolens::build_info::get_version_string() 
               << " (" << nanolens::build_info::get_build_type() << ") launching." << std::endl;
   master_cout << "Built for " << nanolens::build_info::get_system_string() << " (" << 
               nanolens::build_info::get_processor_type() << ")" << std::endl;
@@ -84,11 +72,6 @@ int main(int argc, char** argv)
   
   master_cout << "Using " << world.size() << " process(es).\n";
   
-  std::vector<nanolens::star> stars;
-  
-  master_cout << "Preparing system...\n";
-  
-  
   try
   {
     nanolens::configuration config(world, 0);
@@ -96,7 +79,7 @@ int main(int argc, char** argv)
     std::string config_file = "nanolens.xml";
     if(argc > 2)
     {
-      master_cout << "Usage: nanolens [configuration_file]\n"
+      master_cout << "Usage: nanopostprocess [configuration_file]\n"
                      "  [configuration_file]: An optional argument specifying the path of the\n"
                      "                        configuration file to be used. If not specified,\n"
                      "                        \"nanolens.xml\" will be loaded\n";
@@ -108,11 +91,8 @@ int main(int argc, char** argv)
     master_cout << "Loading configuration: " << config_file << std::endl;
     config.load_from_file(config_file);
 
-    nanolens::standard_launcher launcher(world);
-    launcher.execute_configuration(config, master_cout);
-    
-    // Do postprocessing, if specified.
     nanolens::post_processing_launcher pp_launcher(world);
+
     pp_launcher.execute_configuration(config, master_cout);
   }
   catch(std::exception& e)
@@ -123,5 +103,5 @@ int main(int argc, char** argv)
   }
   
   return 0;
+  
 }
-
