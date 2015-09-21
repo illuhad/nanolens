@@ -120,42 +120,26 @@ public:
   void estimate_mapped_region_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
                                           util::matrix_nxn<util::vector2, 2>& out) const
   {
-    assert(_current_fragment != nullptr);
+    // Get shooting region, but ignore sigma_star.
+    this->_current_fragment->estimate_mapped_region_coordinates(source_plane_coordinates, out, 0.0);
+    // Correct for sigma_star
     
-    util::matrix_nxn<util::vector2, 2> coordinates = source_plane_coordinates;    
-    coordinates[0][0][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
-    coordinates[0][1][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
-    
-    // Get results for the left side of the region from the lens plane fragment
-    util::matrix_nxn<util::vector2, 2> left_coordinates;
-    this->_current_fragment->estimate_mapped_region_coordinates(coordinates, left_coordinates);
-    
-    coordinates[1][0][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
-    coordinates[1][1][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
-    
-    // Get results for the right side of the region
-    util::matrix_nxn<util::vector2, 2> right_coordinates;
-    this->_current_fragment->estimate_mapped_region_coordinates(coordinates, right_coordinates);
-    
-    // Add results
-    for(std::size_t j = 0; j < 2; ++j)
+    util::matrix_nxn<util::vector2, 2> fragment_corners = source_plane_coordinates;
+    fragment_corners[0][0][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
+    fragment_corners[0][1][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
+    fragment_corners[1][0][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
+    fragment_corners[1][1][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
+    for(std::size_t i = 0; i < 2; ++i)
     {
-      // Transform to the origin
-      left_coordinates[0][j][0] -= _current_fragment_center[0];
-      left_coordinates[0][j][0] += 0.5 * _fragment_size;
-
-      out[0][j] = left_coordinates[0][j];
-      out[0][j][0] += source_plane_coordinates[0][j][0];
+      for(std::size_t j = 0; j < 2; ++j)
+      {
+        // Add sigma star contribution based on the current fragment
+        util::vector2 correction = fragment_corners[i][j];
+        util::scale(correction, 1.0 / _sigma_star);
+        util::add(out[i][j], correction);
+      }
     }
-    for(std::size_t j = 0; j < 2; ++j)
-    {
-      // Transform to the origin
-      right_coordinates[1][j][0] -= _current_fragment_center[0];
-      right_coordinates[1][j][0] -= 0.5 * _fragment_size;
-
-      out[1][j] = right_coordinates[1][j];
-      out[1][j][0] += source_plane_coordinates[1][j][0];
-    }
+    
   }
   
   void obtain_properties_set(std::map<std::string, util::scalar>& out) const
@@ -206,7 +190,7 @@ private:
     this->_star_db.query_within_radius(_current_fragment_center, 
                                        _fragment_star_distribution_radius,
                                        query_result);
-    
+
     stars.reserve(query_result.size());
     _total_mass = 0.0;
     _center_of_mass = {0.0, 0.0};

@@ -48,7 +48,7 @@ public:
   {
     if(status.get_current_notification() != "")
     {
-      std::cout << "\nMessage from process " << _comm.rank() << ": " << status.get_current_notification() << std::endl;
+      std::cout << "\n[process " << _comm.rank() << "]: " << status.get_current_notification() << std::endl;
     }
     
     if(_comm.rank() == 0)

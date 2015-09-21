@@ -70,6 +70,12 @@ public:
       {shooting_region_corners[1][0][0] - shooting_region_corners[0][0][0] + overshooting_area_size,
        shooting_region_corners[0][1][1] - shooting_region_corners[0][0][1] + overshooting_area_size};
     
+//    std::cout << shooting_region_corners[0][0][0] << " " << shooting_region_corners[0][0][1] << std::endl; 
+//    std::cout << shooting_region_corners[0][1][0] << " " << shooting_region_corners[0][1][1] << std::endl; 
+//    std::cout << shooting_region_corners[1][0][0] << " " << shooting_region_corners[1][0][1] << std::endl; 
+//    std::cout << shooting_region_corners[1][1][0] << " " << shooting_region_corners[1][1][1] << std::endl; 
+//    std::cout << _shooting_region_size[0] << " " << _shooting_region_size[1] << std::endl;
+    
     util::vector2 half_shooting_region_size = _shooting_region_size;
     util::scale(half_shooting_region_size, 0.5);
     
@@ -170,6 +176,12 @@ public:
     // Determine shooting region
     inverse_ray_shooting_region<System_type> shooting_region(sys, *(this->_screen), this->_config.get_n_rays_per_px());
     
+    if(this->_comm.rank() == 0)
+      handler(status_info("", nullptr, std::string("Shooting region size: ") 
+             + std::to_string(shooting_region.get_region_size()[0])
+             + "x"
+             + std::to_string(shooting_region.get_region_size()[1])));
+    
     std::size_t n_rays_x = shooting_region.get_num_rays()[0];
     std::size_t n_rays_y = shooting_region.get_num_rays()[1];
     
@@ -255,6 +267,8 @@ public:
       
       ++num_jobs_completed;
     }
+    
+    handler(status_info("", nullptr, "Finished computation"));
     
     handler(status_info("Waiting for processes...\n"));
     

@@ -160,7 +160,7 @@ public:
       
       ++num_jobs_completed;
     }
-    
+    this->_handler(status_info("", nullptr, "Finished computation"));
     this->_handler(status_info("Waiting for processes...\n"));
     
     auto add =  [](util::scalar& a, util::scalar b){ a += b;};
