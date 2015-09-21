@@ -9,7 +9,7 @@ project (nanolens)
 
 set(nanolens_VERSION_MAJOR 2)
 set(nanolens_VERSION_MINOR 99)
-set(nanolens_VERSION_PATCH 0)
+set(nanolens_VERSION_PATCH 2)
 
 # configure a header file to pass some of the CMake settings
 # to the source code
