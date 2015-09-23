@@ -129,7 +129,7 @@ private:
     {
       input_file.load<2>(input_data);
     }
-    boost::mpi::broadcast(_comm, input_data, ostr.get_master_rank());
+    input_data.broadcast(_comm, ostr.get_master_rank());
 
     util::multi_array<util::scalar> output_data;
     conv.run(input_data, min_extent, max_extent, *model, 

@@ -175,9 +175,13 @@ public:
     
     _shear_matrix = {{{A * cos2_phi + B * sin2_phi, (A - B)* cos_phi * sin_phi}, 
                       {(A -B )* cos_phi * sin_phi, A * sin2_phi + B * cos2_phi}}};
-    
-    _shear_matrix[0][0] -= _sigma_smooth;
-    _shear_matrix[1][1] -= _sigma_smooth;
+
+    _shear_matrix[0][0] -= _sigma_smooth - _sigma_star;
+    _shear_matrix[1][1] -= _sigma_smooth - _sigma_star;
+
+    //_shear_matrix[0][0] -= _sigma_smooth;
+    //_shear_matrix[1][1] -= _sigma_smooth;
+
   }
 
 

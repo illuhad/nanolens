@@ -495,7 +495,8 @@ public:
     if(rank != master_rank)
     {
       // Use synchronous communication to save memory (the data tables can be quite large)
-      comm.send(master_rank, 0, *this);
+      comm.send(master_rank, 0, this->sizes_);
+      comm.send(master_rank, 0, this->data_, buffer_size_);
     }
     else
     {
@@ -504,7 +505,9 @@ public:
         if(proc != master_rank)
         {
           util::multi_array<T> recv_data;
-          comm.recv(proc, 0, recv_data);
+          comm.recv(proc, 0, recv_data.sizes_);
+          recv_data.init();
+          comm.recv(proc, 0, recv_data.data_, recv_data.buffer_size_);
 
           assert(recv_data.get_dimension() == this->get_dimension());
           for(std::size_t dim = 0; dim < recv_data.get_dimension(); ++dim)
@@ -535,7 +538,21 @@ public:
 
     reduce_parallel_array(comm, master_rank, combination_method);
 
-    boost::mpi::broadcast(comm, *this, master_rank);
+    broadcast(comm, master_rank);
+  }
+  
+  /// Performs a MPI broadcast operation on this array
+  /// @param comm The mpi communicator
+  /// @param master_rank The rank of the master process from which the data
+  /// shall be broadcast.
+  void broadcast(const boost::mpi::communicator& comm, int master_rank)
+  {
+    boost::mpi::broadcast(comm, this->sizes_, master_rank);
+    
+    if(comm.rank() != master_rank)
+      this->init();
+    
+    boost::mpi::broadcast(comm, this->data_, this->buffer_size_, master_rank);
   }
 
 #endif

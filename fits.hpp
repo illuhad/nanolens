@@ -116,29 +116,38 @@ public:
         for(std::size_t i = 0; i < N_dimensions; ++i)
           fpixel[i] = 1;
    
-        std::vector<T> row_buffer(naxes[0], T());
-        for(fpixel[1] = 1; fpixel[1] <= naxes[1]; ++fpixel[1])
-        {
-          if(fits_read_pix(file,
+        fits_read_pix(file,
                         fits_datatype<T>::datatype(), 
                         fpixel, 
-                        naxes[0], 
+                        out.size(), 
                         NULL, 
-                        row_buffer.data(), 
+                        out.data(), 
                         NULL, 
-                        &status))
-          {
-            throw std::runtime_error("Error while loading fits file: "+std::to_string(status));
-          }
-          
-          for(std::size_t i = 0; i < row_buffer.size(); ++i)
-          {
-            std::array<std::size_t, 2> current_pixel = 
-                    {i, static_cast<std::size_t>(fpixel[1] - 1)};
-            
-            out[current_pixel.data()] = row_buffer[i];
-          }
-        }
+                        &status);
+        
+//        std::vector<T> row_buffer(naxes[0], T());
+//        for(fpixel[1] = 1; fpixel[1] <= naxes[1]; ++fpixel[1])
+//        {
+//          if(fits_read_pix(file,
+//                        fits_datatype<T>::datatype(), 
+//                        fpixel, 
+//                        naxes[0], 
+//                        NULL, 
+//                        row_buffer.data(), 
+//                        NULL, 
+//                        &status))
+//          {
+//            throw std::runtime_error("Error while loading fits file: "+std::to_string(status));
+//          }
+//          
+//          for(std::size_t i = 0; i < row_buffer.size(); ++i)
+//          {
+//            std::array<std::size_t, 2> current_pixel = 
+//                    {i, static_cast<std::size_t>(fpixel[1] - 1)};
+//            
+//            out[current_pixel.data()] = row_buffer[i];
+//          }
+//        }
       }
       
       fits_close_file(file, &status);
