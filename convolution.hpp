@@ -82,9 +82,6 @@ public:
         kernel_array[pixel_index.data()] = kernel(pixel_position);
       }
     
-    assert(kernel_array.get_extent_of_dimension(0) 
-            == kernel_array.get_extent_of_dimension(1));
-    
     run(input, kernel_array, output);
   }
   

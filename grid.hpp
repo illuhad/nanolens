@@ -148,16 +148,16 @@ public:
     >::to_grid_index(position, _min_extent, _max_extent, _stepwidths, _num_buckets);
   }
   
-  const util::vector2& get_min_extent() const
+  const scalar_array_type& get_min_extent() const
   { return _min_extent; }
   
-  const util::vector2& get_max_extent() const
+  const scalar_array_type& get_max_extent() const
   { return _max_extent; }
   
-  const util::vector2& get_bucket_size() const
+  const scalar_array_type& get_bucket_size() const
   { return _stepwidths; }
   
-  const util::vector2& get_half_bucket_size() const
+  const scalar_array_type& get_half_bucket_size() const
   { return _half_stepwidth; }
   
   const index_type& get_num_buckets_per_dim() const
@@ -207,7 +207,8 @@ public:
   scalar_array_type get_central_position_of_bucket(const index_type& p) const
   {
     scalar_array_type pos = get_min_position_of_bucket(p);
-    util::add(pos, _half_stepwidth);
+    for(std::size_t i = 0; i < Dimension; ++i)
+      pos[i] += _half_stepwidth[i];
     
     return pos;
   }
@@ -223,8 +224,8 @@ public:
 private:
   scalar_array_type _min_extent;
   scalar_array_type _max_extent;
-  util::vector2 _stepwidths;
-  util::vector2 _half_stepwidth;
+  scalar_array_type _stepwidths;
+  scalar_array_type _half_stepwidth;
   index_type _num_buckets;
   index_type _interior_num_buckets;
 };

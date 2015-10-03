@@ -121,9 +121,9 @@ public:
                                           util::matrix_nxn<util::vector2, 2>& out) const
   {
     // Get shooting region, but ignore sigma_star.
-    this->_current_fragment->estimate_mapped_region_coordinates(source_plane_coordinates, out, 0.0);
-    // Correct for sigma_star
+    this->_current_fragment->estimate_mapped_region_coordinates(source_plane_coordinates, out, _sigma_star);
     
+    /*
     util::matrix_nxn<util::vector2, 2> fragment_corners = source_plane_coordinates;
     fragment_corners[0][0][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
     fragment_corners[0][1][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
@@ -138,7 +138,7 @@ public:
         util::scale(correction, 1.0 / _sigma_star);
         util::add(out[i][j], correction);
       }
-    }
+    }*/
     
   }
   

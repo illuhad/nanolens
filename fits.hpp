@@ -93,7 +93,11 @@ public:
   template<std::size_t N_dimensions>
   void load(util::multi_array<T>& out) const
   {
+#if __cplusplus >= 201103L
     static_assert(N_dimensions > 0, "Number of dimensions cannot be zero.");
+#else
+    assert(N_dimensions > 0);
+#endif
     
     fitsfile* file;
     int status = 0;
@@ -107,8 +111,8 @@ public:
       {
         std::vector<std::size_t> array_sizes;
         array_sizes.reserve(N_dimensions);
-        for(long element : naxes)
-          array_sizes.push_back(static_cast<std::size_t>(element));
+        for(std::size_t i = 0; i < naxes.size(); ++i)
+          array_sizes.push_back(static_cast<std::size_t>(naxes[i]));
         
         out = util::multi_array<T>(array_sizes);
         

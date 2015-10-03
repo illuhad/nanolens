@@ -164,11 +164,12 @@ private:
   {
     int rank = _comm.rank();
     
-    size_t current_beg = 0;
+    std::size_t current_beg = 0;
     for(int i = 0; i < rank; ++i)
-      current_beg += static_cast<size_t>(_performance_statistic[i] * static_cast<double>(_num_jobs)) + 1;
+      // TODO change this
+      current_beg += static_cast<std::size_t>(_performance_statistic[i] * static_cast<double>(_num_jobs)) + 1;
     
-    _own_end = current_beg + static_cast<size_t>(_performance_statistic[rank] * static_cast<double>(_num_jobs));
+    _own_end = current_beg + static_cast<std::size_t>(_performance_statistic[rank] * static_cast<double>(_num_jobs));
     if(_own_end >= _num_jobs || rank == (_comm.size() - 1))
       _own_end = _num_jobs - 1;
 

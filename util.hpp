@@ -20,10 +20,14 @@
 #ifndef UTIL_HPP
 #define	UTIL_HPP
 
+#if __cplusplus >= 201103L
 #include <array>
+#endif
+
 #include <vector>
 #include <cassert>
 #include <algorithm>
+#include <numeric>
 #include <boost/mpi.hpp>
 #include <boost/serialization/vector.hpp>
 
@@ -31,6 +35,20 @@ namespace nanolens{
 namespace util{
 
 typedef float scalar;
+
+#if __cplusplus >= 201103L
+#define NULLPTR nullptr
+
+constexpr scalar square(scalar x)
+{ return x*x; }
+#else
+#define NULLPTR NULL
+
+inline scalar square(scalar x)
+{ return x*x; }
+#endif
+
+#if __cplusplus >= 201103L
 
 template<typename ScalarType, std::size_t N>
 using vector = std::array<ScalarType, N>;
@@ -46,9 +64,6 @@ using matrix_nxn = matrix<ScalarType, N, N>;
 
 const scalar G = 1.;
 const scalar c = 1.;
-
-constexpr scalar square(scalar x)
-{ return x*x; }
 
 inline void add(vector2& a, const vector2& b)
 {
@@ -124,6 +139,13 @@ inline void matrix_vector_mult(const matrix<ScalarType, M, N>& mat,
   }
 }
 
+template<typename T, std::size_t N>
+std::vector<T> array_to_vector(const std::array<T,N>& data)
+{
+  return std::vector<T>(data.begin(), data.end());
+}
+
+#endif // C++11
 
 template<typename T>
 class multi_array
@@ -134,11 +156,11 @@ public:
 
   typedef T* iterator;
   typedef const T* const_iterator;
-
+  
   /// Construct empty array with no dimensions
 
   multi_array()
-  : data_(nullptr), buffer_size_(0)
+  : data_(NULLPTR), buffer_size_(0)
   {
   }
 
@@ -149,7 +171,7 @@ public:
   /// E.g, to construct a 2x3 array, \c sizes has to contain the elements {2, 3}.
 
   explicit multi_array(const std::vector<size_type>& sizes)
-  : sizes_(sizes), data_(nullptr)
+  : sizes_(sizes), data_(NULLPTR)
   {
     init();
   }
@@ -162,7 +184,7 @@ public:
 
   template<size_type N>
   explicit multi_array(const size_type(&sizes) [N])
-  : data_(nullptr), sizes_(sizes + 0, sizes + N)
+  : data_(NULLPTR), sizes_(sizes + 0, sizes + N)
   {
     init();
   }
@@ -176,7 +198,7 @@ public:
   /// the number of dimensions of the \c multi_array
 
   multi_array(const size_type* sizes, size_type num_dimensions)
-  : data_(nullptr), sizes_(sizes, sizes + num_dimensions)
+  : data_(NULLPTR), sizes_(sizes, sizes + num_dimensions)
   {
     init();
   }
@@ -186,7 +208,7 @@ public:
   /// @param size_y The extent of the array in dimension 1
 
   multi_array(size_type size_x, size_type size_y)
-  : data_(nullptr)
+  : data_(NULLPTR)
   {
     sizes_.reserve(2);
     sizes_.push_back(size_x);
@@ -200,7 +222,7 @@ public:
   /// @param size_z The extent of the array in dimension 2
 
   multi_array(size_type size_x, size_type size_y, size_type size_z)
-  : data_(nullptr)
+  : data_(NULLPTR)
   {
     sizes_.reserve(3);
     sizes_.push_back(size_x);
@@ -212,7 +234,7 @@ public:
   /// Copy Constructor. May Throw.
 
   multi_array(const multi_array<T>& other)
-  : sizes_(other.sizes_), buffer_size_(other.buffer_size_), data_(nullptr),
+  : sizes_(other.sizes_), buffer_size_(other.buffer_size_), data_(NULLPTR),
   position_increments_(other.position_increments_)
   {
     if (sizes_.size() != 0)
@@ -359,7 +381,7 @@ public:
   T& operator[](const std::vector<index_type>& position)
   {
     assert(position.size() == get_dimension());
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     assert(pos < buffer_size_);
@@ -373,7 +395,7 @@ public:
   const T& operator[](const std::vector<index_type>& position) const
   {
     assert(position.size() == get_dimension());
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     assert(pos < buffer_size_);
@@ -387,7 +409,7 @@ public:
   T& operator[](const std::vector<int>& position)
   {
     assert(position.size() == get_dimension());
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     assert(pos < buffer_size_);
@@ -401,7 +423,7 @@ public:
   const T& operator[](const std::vector<int>& position) const
   {
     assert(position.size() == get_dimension());
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     assert(pos < buffer_size_);
@@ -417,7 +439,7 @@ public:
   T& operator[](const index_type(&position) [N])
   {
     assert(N == get_dimension());
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     assert(pos < buffer_size_);
@@ -433,7 +455,7 @@ public:
   const T& operator[](const index_type(&position) [N]) const
   {
     assert(N == get_dimension());
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     assert(pos < buffer_size_);
@@ -447,7 +469,7 @@ public:
 
   T& operator[](const index_type* position)
   {
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     if(pos >= buffer_size_)
@@ -467,7 +489,7 @@ public:
 
   const T& operator[](const index_type* position) const
   {
-    assert(data_ != nullptr);
+    assert(data_ != NULLPTR);
 
     size_type pos = calculate_position(position);
     assert(pos < buffer_size_);
@@ -475,6 +497,8 @@ public:
   }
 
 #ifndef WITHOUT_MPI
+  
+#if __cplusplus >= 201103L
   /// Reduces each element within all parallel instances of the array on the
   /// master process by applying a user specified combination function.
   /// @param comm The mpi communicator
@@ -540,6 +564,7 @@ public:
 
     broadcast(comm, master_rank);
   }
+#endif
   
   /// Performs a MPI broadcast operation on this array
   /// @param comm The mpi communicator
@@ -582,7 +607,7 @@ private:
     for (std::size_t i = 0; i < sizes_.size(); ++i)
       assert(sizes_[i] != 0);
 
-    if(data_ != nullptr)
+    if(data_ != NULLPTR)
       delete [] data_;
 
     buffer_size_ = std::accumulate(sizes_.begin(), sizes_.end(), 1,
@@ -745,12 +770,6 @@ public:
 
 };  
 
-
-template<typename T, std::size_t N>
-std::vector<T> array_to_vector(const std::array<T,N>& data)
-{
-  return std::vector<T>(data.begin(), data.end());
-}
 
 
 }
