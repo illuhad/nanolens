@@ -230,7 +230,15 @@ private:
       star_db("star_db", db_cell_size, num_cells, _comm, 0);
     
     std::size_t star_count = 0;
-  
+    
+    util::scalar mean_mass = 0.0;
+    
+    util::iterative_minimum<util::scalar> x_min;
+    util::iterative_minimum<util::scalar> y_min;
+    
+    util::iterative_maximum<util::scalar> x_max;
+    util::iterative_maximum<util::scalar> y_max;
+    
     for(const std::string& filename : config.get_star_files())
     {
       ostr << "Iterative star genesis: Processing file: " << filename << std::endl;
@@ -240,7 +248,14 @@ private:
       for(const star& s : loaded_stars)
       {
         star_db.insert(s.get_position(), s.get_mass());
+        mean_mass += s.get_mass();
         ++star_count;
+        
+        x_min(s.get_position()[0]);
+        y_min(s.get_position()[1]);
+        
+        x_max(s.get_position()[0]);
+        y_max(s.get_position()[1]);
       }
     }
   
@@ -259,10 +274,27 @@ private:
                                           descr.circularization_radius);
         
         star_db.insert(current_star.get_position(), current_star.get_mass());
+        mean_mass += current_star.get_mass();
         ++star_count;
+        
+        x_min(current_star.get_position()[0]);
+        y_min(current_star.get_position()[1]);
+        
+        x_max(current_star.get_position()[0]);
+        y_max(current_star.get_position()[1]);
       }
-
     }
+    mean_mass /= static_cast<util::scalar>(star_count);
+    
+    util::vector2 coordinate_min = {x_min.get(), y_min.get()};
+    util::vector2 coordinate_max = {x_max.get(), y_max.get()};
+    
+    util::scalar covered_area = 
+      (coordinate_max[0] - coordinate_min[0]) * (coordinate_max[1] - coordinate_min[1]);
+    
+    util::scalar sigma_star = 
+      star_count * mean_mass * boost::math::constants::pi<util::scalar>() /
+      covered_area;
   
     star_db.commit();
 
@@ -282,6 +314,7 @@ private:
                                                   typename Deflection_engine_type::settings(config),
                                                   lens_plane_y_center,
                                                   config.get_shear(),
+                                                  sigma_star,
                                                   config.get_sigma_smooth(),
                                                   config.get_shear_rotation_angle(),
                                                   fragment_size,

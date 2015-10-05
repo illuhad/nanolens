@@ -25,7 +25,12 @@
 
 namespace nanolens{
 
-
+/// Implements a microlensing lens plane that is segmented along the x-Axis.
+/// When the lens equation is evaluated, it loads the appropriate segment
+/// into memory (if it is not already present). To correct for the jumps of 
+/// the center of mass when a new fragment is loaded, a smooth mass contribution
+/// is added with a hole where the stars are. This does only work for uniform star
+/// distributions.
 template<class Deflection_engine_type>
 class horizontally_fragmented_microlensing_lens_plane : public plane
 {
@@ -40,6 +45,7 @@ public:
                                               const deflection_engine_settings_type& settings,
                                               util::scalar y_fragment_center,
                                               util::scalar shear,
+                                              util::scalar sigma_star,
                                               util::scalar sigma_smooth,
                                               util::scalar shear_rotation_angle,
                                               util::scalar fragment_size,
@@ -52,6 +58,7 @@ public:
     _shear_rotation_angle(shear_rotation_angle),
     _y_fragment_center(y_fragment_center),
     _half_fragment_size(0.5 * fragment_size),
+    _sigma_star(sigma_star),
     _settings(settings)
   {
     _current_fragment_center = {0.0, _y_fragment_center};
@@ -120,25 +127,8 @@ public:
   void estimate_mapped_region_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
                                           util::matrix_nxn<util::vector2, 2>& out) const
   {
-    // Get shooting region, but ignore sigma_star.
+    // Get shooting region using the global sigma*.
     this->_current_fragment->estimate_mapped_region_coordinates(source_plane_coordinates, out, _sigma_star);
-    
-    /*
-    util::matrix_nxn<util::vector2, 2> fragment_corners = source_plane_coordinates;
-    fragment_corners[0][0][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
-    fragment_corners[0][1][0] = _current_fragment_center[0] - 0.5 * _fragment_size;
-    fragment_corners[1][0][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
-    fragment_corners[1][1][0] = _current_fragment_center[0] + 0.5 * _fragment_size;
-    for(std::size_t i = 0; i < 2; ++i)
-    {
-      for(std::size_t j = 0; j < 2; ++j)
-      {
-        // Add sigma star contribution based on the current fragment
-        util::vector2 correction = fragment_corners[i][j];
-        util::scale(correction, 1.0 / _sigma_star);
-        util::add(out[i][j], correction);
-      }
-    }*/
     
   }
   
@@ -213,7 +203,7 @@ private:
                                                                         _sigma_smooth,
                                                                         _shear_rotation_angle));
     
-    _sigma_star = _current_fragment->get_sigma_star();
+    
     _smooth_matter_fraction = _current_fragment->get_smooth_matter_fraction();
   }
   

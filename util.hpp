@@ -770,7 +770,51 @@ public:
 
 };  
 
+template<class T, class Operator, class Initial_value_getter>
+class iterative_extremal_value
+{
+public:
+  explicit iterative_extremal_value()
+  : _val(Initial_value_getter::value()) {}
+  
+  void operator()(const T& current_value)
+  {
+    if(_op(current_value,_val))
+      _val = current_value;
+  }
+  
+  T get() const
+  {
+    return _val;
+  }
+  
+private:
+  T _val;
+  Operator _op;
+};
 
+template<class T>
+struct min_value
+{
+  static T value(){ return std::numeric_limits<T>::min(); }
+};
+
+template<class T>
+struct max_value
+{
+  static T value(){ return std::numeric_limits<T>::max(); }
+};
+
+
+#if __cplusplus >= 201103L
+
+template<typename T>
+using iterative_minimum = iterative_extremal_value<T, std::less<T>, max_value<T>>;
+
+template<typename T>
+using iterative_maximum = iterative_extremal_value<T, std::greater<T>, min_value<T>>;
+
+#endif // C++11
 
 }
 }
