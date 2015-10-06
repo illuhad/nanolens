@@ -161,8 +161,12 @@ private:
       star hole_pseudo_star(_current_fragment_center, -R_squared * _sigma_star);
       hole_pseudo_star.calculate_deflection_angle(point, hole_contribution);
     }
+    
+    util::vector2 result = point;
+    util::scale(result, _sigma_star);
+    util::add(result, hole_contribution);
 
-    return hole_contribution;
+    return result;
   }
   
   inline bool is_within_fragment_range(const util::vector2& point) const

@@ -31,21 +31,30 @@
 namespace nanolens
 {
 
+/// An implementation of the deflection engine concept that uses a tree to
+/// accelerate the calculation of the deflection angle.
 class tree_deflector
 {
 public:
   class settings 
   {
   public:
-    
+    /// Construct object
+    /// \param config A configuration object from which the deflector will extract
+    /// all relevant settings
     explicit settings(const configuration& config)
     {
       _opening_angle = config.get_deflection_engine_property("opening_angle", 1.0);
     }
     
-    settings(util::scalar opening_angle = 1.0)
+    /// Construct object
+    /// \param opening_angle The opening angle of the tree, i.e. the ratio between
+    /// cell diameter and distance above which the deflection of a cell can
+    /// be approximated
+    explicit settings(util::scalar opening_angle = 1.0)
     : _opening_angle(opening_angle) {}
     
+    /// @return The opening angle
     util::scalar get_opening_angle() const
     {
       return _opening_angle;
@@ -54,12 +63,19 @@ public:
     util::scalar _opening_angle;
   };
   
+  /// Construct object
+  /// @param stars A list containing the stars to be put into the tree
+  /// @param config A settings object from which all settings will be read
   tree_deflector(const std::vector<star>& stars, const settings& config)
   : _tree(stars, config.get_opening_angle())
   {
   }
   
-  
+  /// Calculates the deflection angle
+  /// \param position The position in the lens plane at which the deflection
+  /// shall be calculated
+  /// \param result A two dimensional vector into which the result of the
+  /// calculation will be written.
   inline void operator()(const util::vector2& position, util::vector2& result) const
   {
     result = _tree.get_deflection(position);
@@ -69,20 +85,34 @@ private:
   barnes_hut_tree _tree;
 };
 
+/// An implemtation of the deflection engine concept that calculates the deflection
+/// of the stars by simple, direct summation
 class exact_deflector
 {
 public:
+  /// The definition of a settings object is required by the deflection engine concept,
+  /// however the exact deflector does not need any configuration. Hence, the settings
+  /// object is empty.
   struct settings 
   {
     explicit settings(const configuration&){}
     settings(){}
   };
   
+  /// Construct object
+  /// \param stars A list of stars that shall be used to calculate the deflection
+  /// angle
+  /// \param settings An instance of a settings object (which can be empty for
+  /// the exact deflector)
   exact_deflector(const std::vector<star>& stars, const settings&)
   : _stars(stars)
   {}
   
-  
+  /// Calculates the deflection angle
+  /// \param position The position in the lens plane at which the deflection
+  /// shall be calculated
+  /// \param result A two dimensional vector into which the result of the
+  /// calculation will be written.
   inline void operator()(const util::vector2& position, util::vector2& result) const
   {
     result = {0.0, 0.0};
@@ -99,6 +129,13 @@ private:
   std::vector<star> _stars;
 };
 
+/// Implementation of a lens plane for microlensing, i.e. the deflection will be
+/// due to many individual stars. This implementation uses the normalized lensing
+/// equation: \f$ y=Ax-\sigma_cx-\sum_i\alpha_i(x) \f$ with the shear matrix A,
+/// the deflection due to the stars \f$\alpha_i\f$, and the smooth matter contribution
+/// \f$\sigma_c\f$.
+/// \tparam Deflector_type The deflection engine that shall be used, e.g a tree or
+/// direct summation of the deflection angles of all individual stars.
 template<class Deflector_type>
 class microlensing_lens_plane : public plane
 {
@@ -108,6 +145,17 @@ public:
   typedef std::vector<star>::iterator star_iterator;
   typedef std::vector<star>::const_iterator const_star_iterator;
 
+  /// Construct object
+  /// \param deflectors A list of all individual stars that shall be used. The
+  /// positions of the stars are expected to be given in units of Einstein radii.
+  /// \param settings The settings object of the selected deflection engine.
+  /// This object will be used to initialize the deflection engine, and can
+  /// thus be used to pass any necessary configuration to the deflection engine.
+  /// \param shear The external shear
+  /// \param sigma_smooth The normalized surface density due to smooth matter
+  /// \param shear_rotation_angle An angle in degrees which s pecifies the 
+  /// direction of the shear. 0 degrees means that the shear will be along the
+  /// y-axis.
   explicit microlensing_lens_plane(const std::vector<star>& deflectors,
                       const deflector_settings_type& settings,
                       util::scalar shear = 0.,
@@ -184,13 +232,18 @@ public:
 
   }
 
-
+  /// Calculates the deflection angle  at a given position in the lens plane.
+  /// \param position The position in the lens plane at which the deflection
+  /// shall be calculated
+  /// \param result A two dimensional vector into which the result of the
+  /// calculation will be written.
   inline void get_deflection_angle(const util::vector2& position, util::vector2& result) const
   {
     this->_deflection_engine(position, result);
   }
 
-  // Estimate for the radius of the mass distribution in the plane
+  /// Estimate the radius of the stellar mass distribution in the plane
+  /// @return An estimate for the radius in Einstein radii.
   util::scalar get_radius_estimate() const
   {
     util::scalar result = 0.0;
@@ -210,8 +263,10 @@ public:
     return result;
   }
 
-  // Transform from a position in the lens plane to a position in the source plane
-  // at unit distance
+  /// Transforms from a position in the lens plane to a position in the source plane
+  /// using the normalized lens equation.
+  /// \param lens_plane_pos The position in the lens plane in Einstein radii.
+  /// \return The resulting position in the source plane in Einstein radii.
   inline util::vector2 lensing_transformation(const util::vector2& lens_plane_pos) const
   {
     util::vector2 out;
@@ -224,6 +279,11 @@ public:
     return out;
   }
 
+  /// Given a position in the source plane and a position in the lens plane,
+  /// calculates the corresponding position in the image plane.
+  /// \param lens_plane_pos The position in the plane in Einstein radii
+  /// \param source_plane_pos The position in the source plane in Einstein radii
+  /// \return The position in the image plane
   inline util::vector2 inverse_lensing_transformation(const util::vector2& lens_plane_pos,
                                                   const util::vector2& source_plane_pos) const
   {
@@ -236,21 +296,30 @@ public:
     return out;
   }
 
+  /// \return A iterator to the beginning of the star list
   inline star_iterator begin_stars()
   { return _deflectors.begin(); }
 
+  /// \return A iterator to the beginning of the star list
   inline const_star_iterator begin_stars() const
   { return _deflectors.begin(); }
 
+  /// \return A iterator to the end of the star list
   inline star_iterator end_stars()
   { return _deflectors.end(); }
 
+  /// \return A iterator to the end of the star list
   inline const_star_iterator end_stars() const
   { return _deflectors.end(); }
 
+  /// \return The number of stars
   inline std::size_t num_stars() const
   { return _deflectors.size(); }
 
+  /// Calculates the distance to the nearest star from a given position
+  /// \param position The position in Einstein radii from which the nearest star
+  /// shall be found
+  /// \return The squared distance to the nearest star
   util::scalar find_squared_distance_to_nearest_star(const util::vector2& position) const
   {
     auto nearest_star = get_nearest_star(position);
@@ -264,6 +333,11 @@ public:
     return util::dot(diff_vector, diff_vector);
   }
 
+  /// Finds the nearest star from a given position
+  /// \param position The position in Einstein radii from which the nearest star
+  /// shall be found
+  /// \return The position of the nearest star in Einstein radii, or a vector
+  /// containing the maximum values of util::scalar if there are no stars.
   util::vector2 get_nearest_star_position(const util::vector2& position) const
   {
     auto nearest_star = get_nearest_star(position);
@@ -274,40 +348,58 @@ public:
 
   }
 
+  /// \return A star based on its index in the star list
+  /// \param idx The index of the star. It is the responsibility of the user
+  /// to ensure that \c idx is smaller than the number of stars.
   star& get_star_by_index(std::size_t idx)
   { return _deflectors[idx]; }
 
+  /// \return A star based on its index in the star list
+  /// \param idx The index of the star. It is the responsibility of the user
+  /// to ensure that \c idx is smaller than the number of stars.
   const star& get_star_by_index(std::size_t idx) const
   { return _deflectors[idx]; }
 
+  /// \return The number of stars
   std::size_t get_num_stars() const
   { return _deflectors.size(); }
 
+  /// \return The external shear
   util::scalar get_shear() const
   {
     return _shear;
   }
 
+  /// \return The fraction between smooth matter density and total density
   util::scalar get_smooth_matter_fraction() const
   {
     return _smooth_matter_fraction;
   }
 
+  /// \return The normalized surface density of the smooth matter.
   util::scalar get_sigma_smooth() const
   {
     return _sigma_smooth;
   }
 
+  /// \return The normalized surface density of the stellar mass. If the
+  /// star distribution is not uniform, the mean surface density will be returned.
   util::scalar get_sigma_star() const
   {
     return _sigma_star;
   }
 
+  /// \return The mean total surface density.
   util::scalar get_mean_surface_density() const
   {
     return _sigma_smooth + _sigma_star;
   }
 
+  
+  /// Gathers information about the lens plane.
+  /// \param out A map where the information will be stored. Each key in the map
+  /// will specify the property name and the corresponding value will be the property
+  /// value.
   void obtain_properties_set(std::map<std::string, util::scalar>& out) const
   {
     out.clear();
@@ -321,9 +413,9 @@ public:
   
   /// Estimates the coordinates of a rectangle in the lens plane that is mapped
   /// to a given rectangle in the source plane
-  /// @param source_plane_coordinates A matrix containing the coordinates of the
+  /// \param source_plane_coordinates A matrix containing the coordinates of the
   /// source plane rectangle
-  /// @param out A matrix into which the resulting coordinates in the lens plane
+  /// \param out A matrix into which the resulting coordinates in the lens plane
   /// will be written.
   void estimate_mapped_region_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
                                         util::matrix_nxn<util::vector2, 2>& out) const
@@ -334,11 +426,11 @@ public:
   /// Estimates the coordinates of a rectangle in the lens plane that is mapped
   /// to a given rectangle in the source plane. This version uses a user supplied
   /// value for sigma star.
-  /// @param source_plane_coordinates A matrix containing the coordinates of the
+  /// \param source_plane_coordinates A matrix containing the coordinates of the
   /// source plane rectangle
-  /// @param out A matrix into which the resulting coordinates in the lens plane
+  /// \param out A matrix into which the resulting coordinates in the lens plane
   /// will be written.
-  /// @param sigma_star The stellar density that shall be used.
+  /// \param sigma_star The stellar density that shall be used.
   void estimate_mapped_region_coordinates(const util::matrix_nxn<util::vector2, 2>& source_plane_coordinates,
                                         util::matrix_nxn<util::vector2, 2>& out,
                                         util::scalar sigma_star) const
