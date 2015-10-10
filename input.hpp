@@ -198,13 +198,16 @@ public:
     _sigma_smooth = get_property<util::scalar>("nanolens.system.lens_plane.sigma_smooth", 0.0);
     _shear_rotation_angle = get_property<util::scalar>("nanolens.system.lens_plane.shear_rotation_angle", 0.0);
 
-    BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
-            _tree.get_child("nanolens.post_processing"))
+    if(_tree.find("nanolens.post_processing") != _tree.not_found())
     {
-      if(v.first == "step")
+      BOOST_FOREACH(boost::property_tree::ptree::value_type &v,
+              _tree.get_child("nanolens.post_processing"))
       {
-        post_processing_step_descriptor step(v, *this);
-        this->_post_processing_steps.push_back(step);
+        if(v.first == "step")
+        {
+          post_processing_step_descriptor step(v, *this);
+          this->_post_processing_steps.push_back(step);
+        }
       }
     }
   }

@@ -39,11 +39,15 @@ typedef float scalar;
 #if __cplusplus >= 201103L
 #define NULLPTR nullptr
 
+/// \return The square of a number
+/// \param x The number that shall be squared
 constexpr scalar square(scalar x)
 { return x*x; }
 #else
 #define NULLPTR NULL
 
+/// \return The square of a number
+/// \param x The number that shall be squared
 inline scalar square(scalar x)
 { return x*x; }
 #endif
@@ -65,65 +69,105 @@ using matrix_nxn = matrix<ScalarType, N, N>;
 const scalar G = 1.;
 const scalar c = 1.;
 
+/// Adds two vectors in-place
+/// \param a The first vector. After a call to this function, contains
+/// the result
+/// \param b The second vector
 inline void add(vector2& a, const vector2& b)
 {
   a[0] += b[0];
   a[1] += b[1];
 }
 
+/// Subtracts two vectors in-place
+/// \param a The first vector. After a call to this function, contains
+/// the result.
+/// \param b The second vector that will be subtracted from the first.
 inline void sub(vector2& a, const vector2& b)
 {
   a[0] -= b[0];
   a[1] -= b[1];
 }
 
+/// Calculates \f$a + s\cdot b\f$ in-place. The result will be stored in \c a.
+///
 inline void scale_add(vector2& a, const vector2& b, scalar s)
 {
   a[0] += s * b[0];
   a[1] += s * b[1];
 }
 
+/// Scales a vector by multiplying with a scalar in-place.
+/// \param a The vector that shall be scaled and will be used to store the result
+/// \param s The scalar with which \c shall be multiplied
 inline void scale(vector2& a, scalar s)
 {
   a[0] *= s;
   a[1] *= s;
 }
 
+/// \return the dot product of two vectors
+///
 inline scalar dot(const vector2& a, const vector2& b)
 {
   return a[0] * b[0] + a[1] * b[1];
 }
 
+/// Sets all components of a vector to the value of a given scalar
+///
 inline void assign(vector2& a, scalar s)
 {
   a[0] = s;
   a[1] = s;
 }
 
-// Determinant of a matrix defined by two column vectors
+/// Interprets two two-dimensional vectors as column vectors of a matrix and
+/// calculates the determinant of this matrix
+/// \param a The first column of the matrix
+/// \param b The second column of the matrix
+/// \return The determinant
 inline scalar det(const vector2& a, const vector2& b)
 {
   return a[0] * b[1] - a[1] * b[0];
 }
 
+/// Calculates the average of two vectors
+/// \param a The first vector
+/// \param b The second vector
+/// \param out A vector in which the result will be stored
 inline void average(const vector2& a, const vector2& b, vector2& out)
 {
   out[0] = 0.5 * (a[0] + b[0]);
   out[1] = 0.5 * (a[1] + b[1]);
 }
 
+/// Calculates the average of three vectors
+/// \param a The first vector
+/// \param b The second vector
+/// \param c The third vector
+/// \param out A vector in which the result will be stored
 inline void average(const vector2& a, const vector2& b, const vector2& c, vector2& out)
 {
   out[0] = 1.0 / 3.0 * (a[0] + b[0] + c[0]);
   out[1] = 1.0 / 3.0 * (a[1] + b[1] + c[1]);
 }
 
+/// Normalizes a vector
+/// \param a The vector that shall be normalized
 inline void normalize(vector2& a)
 {
   scalar length = std::sqrt(dot(a, a));
   scale(a, 1.0 / length);
 }
 
+/// Performs a matrix-vector multiplication
+/// \tparam ScalarType The scalar datatype
+/// \tparam M The number of rows of the matrix
+/// \tparam N The number of columns of the matrix
+/// \param mat The matrix
+/// \param x The vector (its dimension must equal N)
+/// \oaram out A vector in which the result will be stored (its dimension 
+/// must equal M)
 template<typename ScalarType, std::size_t M, std::size_t N>
 inline void matrix_vector_mult(const matrix<ScalarType, M, N>& mat,
                         const vector<ScalarType, N>& x,
@@ -139,6 +183,11 @@ inline void matrix_vector_mult(const matrix<ScalarType, M, N>& mat,
   }
 }
 
+/// Constructs a \c std::vector<> from a \c std::array<>
+/// \tparam T the data type stored in the vector and array
+/// \tparam N the size of the array
+/// \param data A \c std::array from which a \c std::vector shall be constructed. 
+/// \return A vector with the same content as the array
 template<typename T, std::size_t N>
 std::vector<T> array_to_vector(const std::array<T,N>& data)
 {
@@ -147,6 +196,8 @@ std::vector<T> array_to_vector(const std::array<T,N>& data)
 
 #endif // C++11
 
+/// Implements a dynamic multidimensional array
+/// \tparam T the data type to be stored in the array
 template<typename T>
 class multi_array
 {
@@ -166,7 +217,7 @@ public:
 
   /// Construct multi dimensional array with the dimensions given
   /// as a \c std::vector.
-  /// @param sizes Specifies the dimensions. \c sizes.size() is the number
+  /// \param sizes Specifies the dimensions. \c sizes.size() is the number
   /// of dimensions, and \c sizes[i] the extent in the i-th dimension.
   /// E.g, to construct a 2x3 array, \c sizes has to contain the elements {2, 3}.
 
@@ -178,7 +229,7 @@ public:
 
   /// Construct multi dimensional array with the dimensions given
   /// as a simple stack-based C-style array.
-  /// @param sizes Specifies the dimensions. \c sizes.size() is the number
+  /// \param sizes Specifies the dimensions. \c sizes.size() is the number
   /// of dimensions, and \c sizes[i] the extent in the i-th dimension.
   /// E.g, to construct a 2x3 array, \c sizes has to contain the elements {2, 3}.
 
@@ -191,10 +242,10 @@ public:
 
   /// Construct multi dimensional array with the dimensions given
   /// as a simple C-style array.
-  /// @param sizes Specifies the dimensions. \c sizes.size() is the number
+  /// \param sizes Specifies the dimensions. \c sizes.size() is the number
   /// of dimensions, and \c sizes[i] the extent in the i-th dimension.
   /// E.g, to construct a 2x3 array, \c sizes has to contain the elements {2, 3}.
-  /// @param num_dimensions The number of elements of \c sizes and thus
+  /// \param num_dimensions The number of elements of \c sizes and thus
   /// the number of dimensions of the \c multi_array
 
   multi_array(const size_type* sizes, size_type num_dimensions)
@@ -204,8 +255,8 @@ public:
   }
 
   /// Construct two dimensional array
-  /// @param size_x The extent of the array in dimension 0
-  /// @param size_y The extent of the array in dimension 1
+  /// \param size_x The extent of the array in dimension 0
+  /// \param size_y The extent of the array in dimension 1
 
   multi_array(size_type size_x, size_type size_y)
   : data_(NULLPTR)
@@ -217,9 +268,9 @@ public:
   }
 
   /// Construct three dimensional array
-  /// @param size_x The extent of the array in dimension 0
-  /// @param size_y The extent of the array in dimension 1
-  /// @param size_z The extent of the array in dimension 2
+  /// \param size_x The extent of the array in dimension 0
+  /// \param size_y The extent of the array in dimension 1
+  /// \param size_z The extent of the array in dimension 2
 
   multi_array(size_type size_x, size_type size_y, size_type size_z)
   : data_(NULLPTR)
@@ -232,7 +283,7 @@ public:
   }
 
   /// Copy Constructor. May Throw.
-
+  /// \param other The other instance of which the content shall be copied
   multi_array(const multi_array<T>& other)
   : sizes_(other.sizes_), buffer_size_(other.buffer_size_), data_(NULLPTR),
   position_increments_(other.position_increments_)
@@ -261,8 +312,8 @@ public:
   }
 
   /// Swap two multi arrays. Their sizes do not have to equal.
-  /// @param a The first array
-  /// @param b The second array
+  /// \param a The first array
+  /// \param b The second array
 
   friend void swap(multi_array<T>& a, multi_array<T>& b)
   {
@@ -274,8 +325,8 @@ public:
     swap(a.position_increments_, b.position_increments_);
   }
 
-  /// @return The extent of a dimension
-  /// @param dim The index of the dimension
+  /// \return The extent of a dimension
+  /// \param dim The index of the dimension
 
   size_type get_extent_of_dimension(std::size_t dim) const
   {
@@ -283,28 +334,28 @@ public:
     return sizes_[dim];
   }
 
-  /// @return The dimension of the array
+  /// \return The dimension of the array
 
   size_type get_dimension() const
   {
     return sizes_.size();
   }
 
-  /// @return An iterator type to the beginning of the array
+  /// \return An iterator type to the beginning of the array
 
   iterator begin()
   {
     return data_;
   }
 
-  /// @return An iterator type to the beginning of the array
+  /// \return An iterator type to the beginning of the array
 
   const_iterator begin() const
   {
     return data_;
   }
 
-  /// @return An iterator type pointing to one element beyond the
+  /// \return An iterator type pointing to one element beyond the
   /// last element of the array
 
   iterator end()
@@ -312,7 +363,7 @@ public:
     return data_ + buffer_size_;
   }
 
-  /// @return An iterator type pointing to one element beyond the
+  /// \return An iterator type pointing to one element beyond the
   /// last element of the array
 
   const_iterator end() const
@@ -320,14 +371,14 @@ public:
     return data_ + buffer_size_;
   }
 
-  /// @return The total number of elements in the array
+  /// \return The total number of elements in the array
 
   size_type get_num_elements() const
   {
     return buffer_size_;
   }
 
-  /// @return The total number of elements in the array
+  /// \return The total number of elements in the array
 
   size_type size() const
   {
@@ -335,23 +386,23 @@ public:
   }
 
   /// Grants access to the raw data buffer
-  /// @return the raw data buffer
+  /// \return the raw data buffer
   T* data()
   {
     return data_;
   }
 
   /// Grants access to the raw data buffer
-  /// @return the raw data buffer
+  /// \return the raw data buffer
   const T* data() const
   {
     return data_;
   }
 
   /// Checks if an (multi-dimensional) index is within the bounds
-  // of the multi_array
-  /// @return whether the index is within the bounds
-  /// @param position the index
+  /// of the multi_array
+  /// \return whether the index is within the bounds
+  /// \param position the index
   bool is_within_bounds(const index_type* position) const
   {
     for(size_type i = 0; i < get_dimension(); ++i)
@@ -362,8 +413,8 @@ public:
 
   /// Checks if an (multi-dimensional) index is within the bounds
   // of the multi_array
-  /// @return whether the index is within the bounds
-  /// @param position the index
+  /// \return whether the index is within the bounds
+  /// \param position the index
   bool is_within_bounds(const std::vector<index_type>& position) const
   {
     for(size_type i = 0; i < get_dimension(); ++i)
@@ -375,8 +426,8 @@ public:
 
 
   /// Access an element of the array
-  /// @param position Contains the indices of the element to look up
-  /// @return A reference to the specified element
+  /// \param position Contains the indices of the element to look up
+  /// \return A reference to the specified element
 
   T& operator[](const std::vector<index_type>& position)
   {
@@ -389,8 +440,8 @@ public:
   }
 
   /// Access an element of the array
-  /// @param position Contains the indices of the element to look up
-  /// @return A reference to the specified element
+  /// \param position Contains the indices of the element to look up
+  /// \return A reference to the specified element
 
   const T& operator[](const std::vector<index_type>& position) const
   {
@@ -403,8 +454,8 @@ public:
   }
 
   /// Access an element of the array
-  /// @param position Contains the indices of the element to look up
-  /// @return A reference to the specified element
+  /// \param position Contains the indices of the element to look up
+  /// \return A reference to the specified element
 
   T& operator[](const std::vector<int>& position)
   {
@@ -417,8 +468,8 @@ public:
   }
 
   /// Access an element of the array
-  /// @param position Contains the indices of the element to look up
-  /// @return A reference to the specified element
+  /// \param position Contains the indices of the element to look up
+  /// \return A reference to the specified element
 
   const T& operator[](const std::vector<int>& position) const
   {
@@ -431,9 +482,9 @@ public:
   }
 
   /// Access an element of the array
-  /// @param position A simple C-array containing the indices of the
+  /// \param position A simple C-array containing the indices of the
   /// element to look up
-  /// @return A reference to the specified element
+  /// \return A reference to the specified element
 
   template<size_type N>
   T& operator[](const index_type(&position) [N])
@@ -447,9 +498,9 @@ public:
   }
 
   /// Access an element of the array
-  /// @param position A simple C-array containing the indices of the
+  /// \param position A simple C-array containing the indices of the
   /// element to look up
-  /// @return A reference to the specified element
+  /// \return A reference to the specified element
 
   template<size_type N>
   const T& operator[](const index_type(&position) [N]) const
@@ -463,9 +514,9 @@ public:
   }
 
   /// Access an element of the array
-  /// @param position A pointer to a simple C-array containing the
+  /// \param position A pointer to a simple C-array containing the
   /// indices of the element to look up
-  /// @return A reference to the specified element
+  /// \return A reference to the specified element
 
   T& operator[](const index_type* position)
   {
@@ -483,9 +534,9 @@ public:
   }
 
   /// Access an element of the array
-  /// @param position A pointer to asimple C-array containing the
+  /// \param position A pointer to asimple C-array containing the
   /// indices of the element to look up
-  /// @return A reference to the specified element
+  /// \return A reference to the specified element
 
   const T& operator[](const index_type* position) const
   {
@@ -499,14 +550,17 @@ public:
 #ifndef WITHOUT_MPI
   
 #if __cplusplus >= 201103L
-  /// Reduces each element within all parallel instances of the array on the
-  /// master process by applying a user specified combination function.
-  /// @param comm The mpi communicator
-  /// @param master_rank The rank of the master process. Only this process
-  /// will have access to the reduces array.
-  /// @param combination_method The function that will be applied to combine
+  /// Combines each element within all parallel instances of the array on the
+  /// master process by applying a user specified combination function. This
+  /// function does not rely on \c boost::serialization to send the data, since
+  /// this would lead to an additional call to \c MPI_Alloc_mem which fails
+  /// if the array is larger than \f$2^{31}-1\f$ bytes.
+  /// \param comm The mpi communicator
+  /// \param master_rank The rank of the master process. Only this process
+  /// will have access to the combined array.
+  /// \param combination_method The function that will be applied to combine
   /// all elements at the same position in the parallel array instances.
-  /// It must have the signature T (const T&, const T&)
+  /// It must have the signature \c void(T&, const T&) and be an in-place operation
 
   template<class Function>
   void reduce_parallel_array(const boost::mpi::communicator& comm,
@@ -549,9 +603,11 @@ public:
   }
 
   /// Like \c reduce_parallel_array, but makes the result available to each
-  /// process.
-  /// @param comm The mpi communicator
-  /// @param combination_method The function that will be applied to combine
+  /// process.  This function does not rely on \c boost::serialization to send 
+  /// the data, since this would lead to an additional call to \c MPI_Alloc_mem 
+  /// which fails if the array is larger than \f$2^{31}-1\f$ bytes.
+  /// \param comm The mpi communicator
+  /// \param combination_method The function that will be applied to combine
   /// all elements at the same position in the parallel array instances.
   /// It must have the signature T (const T&, const T&)
   template<class Function>
@@ -567,8 +623,8 @@ public:
 #endif
   
   /// Performs a MPI broadcast operation on this array
-  /// @param comm The mpi communicator
-  /// @param master_rank The rank of the master process from which the data
+  /// \param comm The mpi communicator
+  /// \param master_rank The rank of the master process from which the data
   /// shall be broadcast.
   void broadcast(const boost::mpi::communicator& comm, int master_rank)
   {
@@ -585,10 +641,9 @@ public:
 private:
   /// Based on the indices of an element, calculates the position
   /// of the element in the flat, one-dimensional data array.
-  /// @param position An object of a type offering operator[], that
+  /// \param position An object of a type offering operator[], that
   /// stores the indices of the element
-  /// @return the position in the one dimensional data array.
-
+  /// \return the position in the one dimensional data array.
   template<typename Container>
   inline size_type calculate_position(const Container& position) const
   {
@@ -600,7 +655,6 @@ private:
   }
 
   /// Initializes the data array and the position increments of each dimension
-
   void init()
   {
     assert(sizes_.size() != 0);
@@ -633,6 +687,7 @@ private:
 
   friend class boost::serialization::access;
 
+  /// Serializes the array
   template<class Archive>
   void save(Archive& ar, const unsigned int version) const
   {
@@ -641,6 +696,7 @@ private:
       ar & data_[i];
   }
 
+  /// Deserializes the array
   template<class Archive>
   void load(Archive& ar, const unsigned int version)
   {

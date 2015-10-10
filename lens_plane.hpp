@@ -451,6 +451,10 @@ public:
 
   }
 private:
+  
+  /// Finds the nearest star from a given position
+  /// \param position The position from which the nearest star shall be found
+  /// \return An iterator to the star or an end-vector if there are no stars.
   std::vector<star>::const_iterator get_nearest_star(const util::vector2& position) const
   {
     auto nearest_star = _deflectors.end();
@@ -473,6 +477,10 @@ private:
     return nearest_star;
   }
 
+  /// Finds the nearest star from a given position (index version)
+  /// \param position The position from which the nearest star shall be found
+  /// \return The index of the nearest star in the star list, or \c get_num_stars()
+  /// if there are no stars.
   std::size_t get_nearest_star_index(const util::vector2& position) const
   {
     std::size_t idx = _deflectors.size();

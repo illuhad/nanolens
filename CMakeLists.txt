@@ -9,7 +9,7 @@ project (nanolens)
 
 set(nanolens_VERSION_MAJOR 2)
 set(nanolens_VERSION_MINOR 99)
-set(nanolens_VERSION_PATCH 4)
+set(nanolens_VERSION_PATCH 5)
 
 # configure a header file to pass some of the CMake settings
 # to the source code
@@ -62,9 +62,20 @@ include_directories(${BOOST_INCLUDE_DIRS})
 target_link_libraries (nanolens boost_serialization boost_mpi cfitsio)
 target_link_libraries (nanopostprocess boost_serialization boost_mpi cfitsio)
 
+#Install nanolens configuration file
 add_custom_command(TARGET nanolens POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy
                        ${CMAKE_SOURCE_DIR}/nanolens.xml $<TARGET_FILE_DIR:nanolens>)
+
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
+  add_custom_target(doc ALL
+    ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Generating API documentation with Doxygen" VERBATIM
+  )
+endif(DOXYGEN_FOUND)
 
 
 

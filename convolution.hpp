@@ -28,55 +28,81 @@
 
 namespace nanolens{
 
+/// Base class for convolution algorithms
+/// \tparam Scalar_type the data type of a scalar
+/// \tparam Vector_type the corresponding data type of a vector
 template<typename Scalar_type, class Vector_type>
 class convolution
 {
 public:
+  /// Construct object
+  /// \param comm The mpi communicator to be used
+  /// \param handler A status handler object that will be used to forward information
+  /// about the current progress of the convolution
   convolution(const boost::mpi::communicator& comm, status_handler_type handler)
   : _comm(comm), _handler(handler) {}
   
   virtual ~convolution(){}
   
-  typedef util::multi_array<Scalar_type>                  discrete_convolution_kernel_type;
+  typedef util::multi_array<Scalar_type> discrete_convolution_kernel_type;
   typedef util::multi_array<Scalar_type> array_type;
   
+  /// Perform convolution. Currently, only 2D convolutions are supported.
+  /// \tparam Functional_convolution_kernel_type The type of the function that will
+  /// be used to evaluate the kernel. It must be a callable function object (or lambda
+  /// expression) supporting calls of the signature \c Scalar_type(const Vector_type&)
+  /// \param input The input array that will be convolved
+  /// \param input_min_extent The coordinates of the corner of the \c input array 
+  /// with the mimimum coordinate values
+  /// \param input_max_extent The coordinates of the corner of the \c input array
+  /// with the maximimum coordinate values
+  /// \param kernel A function that represents the convolution kernel. This function
+  /// be sampled into an array that will be used as actual convolution kernel.
+  /// Its position at which it is evaluated will be in the same unit as the corner
+  /// coordinates of the input, i.e. in general NOT pixels.
+  /// \param kernel_evaluation_diameter The kernel function will be evaluated around
+  /// the coordinate origin in a square this diameter.
+  /// \param output An array where the result of the convolution will be stored.
   template<class Functional_convolution_kernel_type>
   void run(const array_type& input, 
-           const util::vector2& input_min_extent,
-           const util::vector2& input_max_extent,
+           const Vector_type& input_min_extent,
+           const Vector_type& input_max_extent,
            const Functional_convolution_kernel_type& kernel,
-           util::scalar kernel_evaluation_diameter,
+           Scalar_type kernel_evaluation_diameter,
            array_type& output)
   {
     // Start by filling a grid with evaluations of the kernel function
-    util::vector2 pixel_size = input_max_extent;
-    util::sub(pixel_size, input_min_extent);
+    Vector_type pixel_size = input_max_extent;
+
     for(std::size_t i = 0; i < pixel_size.size(); ++i)
-      pixel_size[i] /= static_cast<util::scalar>(input.get_extent_of_dimension(i));
+    {
+      pixel_size[i] -= input_min_extent[i];
+      pixel_size[i] /= static_cast<Scalar_type>(input.get_extent_of_dimension(i));
+    }
     
     std::array<std::size_t, 2> num_kernel_pixels;
     for(std::size_t i = 0; i < pixel_size.size(); ++i)
       num_kernel_pixels[i] = static_cast<std::size_t>(kernel_evaluation_diameter / pixel_size[i]);
 
-    util::vector2 expected_kernel_diameter = {num_kernel_pixels[0] * pixel_size[0],
+    Vector_type expected_kernel_diameter = {num_kernel_pixels[0] * pixel_size[0],
                                               num_kernel_pixels[1] * pixel_size[1]};
     
     array_type kernel_array(num_kernel_pixels[0], num_kernel_pixels[1]);
     
-    util::vector2 kernel_min_extent = {-expected_kernel_diameter[0] / 2, 
-                                       -expected_kernel_diameter[1] / 2};
+    Vector_type kernel_min_extent = {-expected_kernel_diameter[0] / 2, 
+                                     -expected_kernel_diameter[1] / 2};
     
-    util::vector2 kernel_max_extent = { expected_kernel_diameter[0] / 2, 
-                                        expected_kernel_diameter[1] / 2};
+    Vector_type kernel_max_extent = { expected_kernel_diameter[0] / 2, 
+                                      expected_kernel_diameter[1] / 2};
     
-    util::grid_translator<util::scalar, 2, false> translator(kernel_min_extent,
+    util::grid_translator<Scalar_type, 2, false> translator(kernel_min_extent,
                                                              kernel_max_extent, 
                                                              num_kernel_pixels);
     
     for(std::size_t x = 0; x < kernel_array.get_extent_of_dimension(0); ++x)
       for(std::size_t y = 0; y < kernel_array.get_extent_of_dimension(1); ++y)
       {
-        util::grid_translator<util::scalar, 2, false>::index_type pixel_index = {x,y};
+        typename util::grid_translator<Scalar_type, 2, false>::index_type pixel_index = {x,y};
         util::vector2 pixel_position = translator.get_central_position_of_bucket(pixel_index);
         
         kernel_array[pixel_index.data()] = kernel(pixel_position);
@@ -85,6 +111,10 @@ public:
     run(input, kernel_array, output);
   }
   
+  /// Perform convolution. Currently, only 2D convolutions are supported.
+  /// \param input The input array
+  /// \param kernel The convolution kernel sampled into an array
+  /// \param output An array where the result of the convolution will be stored.
   virtual void run(const array_type& input, 
                    const discrete_convolution_kernel_type& kernel,
                    array_type& output) = 0;
@@ -94,6 +124,10 @@ protected:
   status_handler_type _handler;
 };
 
+/// Performs a direct convolution, i.e. just sums up all contributions. This
+/// is only performing well for small convolution kernels.
+/// \tparam Scalar_type the data type of a scalar
+/// \tparam Vector_type the corresponding data type of a vector
 template<typename Scalar_type, class Vector_type>
 class direct_convolution : public convolution<Scalar_type, Vector_type>
 {
@@ -103,11 +137,19 @@ public:
   using typename convolution<Scalar_type, Vector_type>::array_type;
   typedef std::array<std::size_t, 2> pixel_index_type;
   
+  /// Construct object
+  /// \param comm The mpi communicator that shall be used
+  /// \param handler A status handler object that will be used to forward information
+  /// about the current progress of the convolution
   direct_convolution(const boost::mpi::communicator& comm,
                      status_handler_type handler)
   : convolution<Scalar_type, Vector_type>(comm, handler)
   {}
   
+  /// Perform convolution. Currently, only 2D convolutions are supported.
+  /// \param input The input array
+  /// \param kernel The convolution kernel sampled into an array
+  /// \param output An array where the result of the convolution will be stored.
   virtual void run(const array_type& input, 
                    const discrete_convolution_kernel_type& kernel,
                    array_type& output)
@@ -165,6 +207,10 @@ public:
   }
   
 private:
+  /// Calculates the convolved value of a given pixel
+  /// \param input The input array
+  /// \param kernel The convolution kernel array
+  /// \param px The index of the pixel of which the convolved value shall be calculated.
   util::scalar get_convolved_pixel_value(const array_type& input,
                                          const discrete_convolution_kernel_type& kernel,
                                          const pixel_index_type& px) const
@@ -204,6 +250,8 @@ private:
   }
 };
 
+/// An implementation of a fast convolution algorithm using the fftw fast fourier
+/// transform. This is work in progress and not yet functional!
 template<typename Scalar_type, class Vector_type>
 class fftw_convolution : public convolution<Scalar_type, Vector_type>
 {

@@ -67,14 +67,9 @@ public:
                                                            shooting_region_corners);
     
     _shooting_region_size = 
-      {shooting_region_corners[1][0][0] - shooting_region_corners[0][0][0] + overshooting_area_size,
-       shooting_region_corners[0][1][1] - shooting_region_corners[0][0][1] + overshooting_area_size};
+      {std::abs(shooting_region_corners[1][0][0] - shooting_region_corners[0][0][0]) + overshooting_area_size,
+       std::abs(shooting_region_corners[0][1][1] - shooting_region_corners[0][0][1]) + overshooting_area_size};
     
-//    std::cout << shooting_region_corners[0][0][0] << " " << shooting_region_corners[0][0][1] << std::endl; 
-//    std::cout << shooting_region_corners[0][1][0] << " " << shooting_region_corners[0][1][1] << std::endl; 
-//    std::cout << shooting_region_corners[1][0][0] << " " << shooting_region_corners[1][0][1] << std::endl; 
-//    std::cout << shooting_region_corners[1][1][0] << " " << shooting_region_corners[1][1][1] << std::endl; 
-//    std::cout << _shooting_region_size[0] << " " << _shooting_region_size[1] << std::endl;
     
     util::vector2 half_shooting_region_size = _shooting_region_size;
     util::scale(half_shooting_region_size, 0.5);

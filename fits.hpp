@@ -28,6 +28,7 @@ namespace nanolens{
 
 namespace util{
 
+/// Translates a C++ data type into fitsio datatypes
 template<typename Scalar_type>
 struct fits_datatype
 {};
@@ -52,14 +53,25 @@ struct fits_datatype<double>
   { return TDOUBLE; }
 };
 
-
+/// Implements loading and saving fits images. It is the responsibility of the
+/// user to take care of parallelization effects, i.e. preventing two processes 
+/// from saving to the same file at the same time or distributing loaded data
+/// among computing processes.
+/// \tparam T the datatype of the fits image. If the \c T does not equal the actual
+/// datatype, cfitsio should automatically convert the data to \c T on the fly.
 template<typename T>
 class fits
 {
 public:
+  /// Construct object
+  /// \param filename The name of the file that shall be loaded or to which
+  /// data shall be saved.
   fits(const std::string& filename)
   : _filename(filename) {}
   
+  /// Saves data to the file specified in the constructor.
+  /// \param data The data that shall be saved.
+  /// \throws std::runtime_error if the data could not be saved
   void save(const util::multi_array<T>& data) const
   {
     fitsfile* file;
@@ -86,10 +98,20 @@ public:
         
         fits_close_file(file, &status);
       }
+      else
+        throw std::runtime_error(std::string("Could not create fits image: ") + _filename);
       
     }
+    else
+      throw std::runtime_error(std::string("Could not create fits file: ") + _filename);
   }
   
+  /// Loads data from a fits file
+  /// \tparam N_dimensions The number of dimensions of the fits image that shall
+  /// be loaded
+  /// \param out An array that will be used to store the loaded data. It will be
+  /// automatically resized to the correct size and dimensions.
+  /// \throws std::runtime_error if the data could not be loaded
   template<std::size_t N_dimensions>
   void load(util::multi_array<T>& out) const
   {
@@ -129,29 +151,6 @@ public:
                         NULL, 
                         &status);
         
-//        std::vector<T> row_buffer(naxes[0], T());
-//        for(fpixel[1] = 1; fpixel[1] <= naxes[1]; ++fpixel[1])
-//        {
-//          if(fits_read_pix(file,
-//                        fits_datatype<T>::datatype(), 
-//                        fpixel, 
-//                        naxes[0], 
-//                        NULL, 
-//                        row_buffer.data(), 
-//                        NULL, 
-//                        &status))
-//          {
-//            throw std::runtime_error("Error while loading fits file: "+std::to_string(status));
-//          }
-//          
-//          for(std::size_t i = 0; i < row_buffer.size(); ++i)
-//          {
-//            std::array<std::size_t, 2> current_pixel = 
-//                    {i, static_cast<std::size_t>(fpixel[1] - 1)};
-//            
-//            out[current_pixel.data()] = row_buffer[i];
-//          }
-//        }
       }
       
       fits_close_file(file, &status);
