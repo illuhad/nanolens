@@ -1,33 +1,34 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
+    <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Nanolens by illuhad</title>
-
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/github-dark.css">
-    <script src="javascripts/scale.fix.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
 
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
+
+    <title>Nanolens by illuhad</title>
   </head>
+
   <body>
-    <div class="wrapper">
-      <header>
+    <header>
+      <div class="inner">
         <h1>Nanolens</h1>
-        <p>A high performance, fully parallelized MPI application to calculate magnification patterns caused by gravitational microlensing</p>
-        <p class="view"><a href="https://github.com/illuhad/nanolens">View the Project on GitHub <small>illuhad/nanolens</small></a></p>
-        <ul>
-          <li><a href="https://github.com/illuhad/nanolens/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/illuhad/nanolens/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/illuhad/nanolens">View On <strong>GitHub</strong></a></li>
-        </ul>
-      </header>
-      <section>
-        <h1>
+        <h2>A high performance, fully parallelized MPI application to calculate magnification patterns caused by gravitational microlensing</h2>
+        <a href="https://github.com/illuhad/nanolens" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1>
 <a id="about" class="anchor" href="#about" aria-hidden="true"><span class="octicon octicon-link"></span></a>About</h1>
 
 <p>Nanolens is an application to calculate gravitational lensing effects (currently microlensing magnification patterns, but additional features are planned for the future), with a focus on</p>
@@ -39,13 +40,78 @@
 <li>Powerful: nanolens is designed to be an extendible collection of different methods algorithms rather than an implementation of one specific method.</li>
 <li>User-friendly, flexible configuration: The application is fully controlled via a xml-file. No changes to the code itself are required to alter the solved problem. Results are stored in easy-to-use formats, such as FITS images.</li>
 </ul>
-      </section>
+
+<h1>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h1>
+
+<h2>
+<a id="dependencies" class="anchor" href="#dependencies" aria-hidden="true"><span class="octicon octicon-link"></span></a>Dependencies</h2>
+
+<p>For a successful build, you must have the following software installed</p>
+
+<ul>
+<li>cmake [used as build system]</li>
+<li>A C++ compiler with C++11 support. gcc &gt;= 4.8 should be fine. [for the new C++ features used in the code]</li>
+<li>cfitsio [used to read/write fits images]</li>
+<li>A working MPI implentation, e.g. OpenMPI [required for the parallelization]</li>
+<li>the boost C++ libraries, especially
+
+<ul>
+<li>boost::mpi [C++ interface to MPI]</li>
+<li>boost::serialization [used to serialize C++ datatypes for MPI data transfers]</li>
+</ul>
+</li>
+</ul>
+
+<p>Additionally, the following optional dependencies exist:</p>
+
+<ul>
+<li>CUDA [for GPU acceleration, available from nanolens 3.0 onwards]</li>
+<li>Doxygen [if you want to generate code documentation]</li>
+</ul>
+
+<h2>
+<a id="configuration-and-compilation" class="anchor" href="#configuration-and-compilation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Configuration and compilation</h2>
+
+<p>Configuration and compilation can be done with the following commands
+<code>mkdir build; cd build</code>
+<code>cmake &lt;source directory&gt;</code>
+<code>make</code></p>
+
+<p>If you wish to use a more graphical frontend, replace <code>cmake</code> by <code>ccmake</code> in the above commands. <code>ccmake</code> provides a relatively intuitive interface to configure the project, and enable optional features such as CUDA support. By default, CUDA support is disabled.</p>
+
+<p>To generate code documentation, type
+<code>make doc</code></p>
+
+<h2>
+<a id="using-nanolens" class="anchor" href="#using-nanolens" aria-hidden="true"><span class="octicon octicon-link"></span></a>Using nanolens</h2>
+
+<p>You should now have one program called <code>nanolens</code> and one program called <code>nanopostprocess</code> as well as an example configuration file <code>nanolens.xml</code></p>
+
+<h3>
+<a id="nanolens" class="anchor" href="#nanolens" aria-hidden="true"><span class="octicon octicon-link"></span></a>nanolens</h3>
+
+<h3>
+<a id="nanopostprocess" class="anchor" href="#nanopostprocess" aria-hidden="true"><span class="octicon octicon-link"></span></a>nanopostprocess</h3>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/illuhad/nanolens/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/illuhad/nanolens/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/illuhad/nanolens"></a> is maintained by <a href="https://github.com/illuhad">illuhad</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
     </div>
-    <footer>
-      <p>Project maintained by <a href="https://github.com/illuhad">illuhad</a></p>
-      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
-    </footer>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-    
+
+  
   </body>
 </html>
